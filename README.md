@@ -1,7 +1,5 @@
 <div align="center">
-  <img src="./build/icon.png" alt="TooBee PDF Studio Logo" width="120" />
   <h1>TooBee PDF Studio</h1>
-  <p><b>The ultimate, lightweight, and blazingly fast PDF toolkit.</b></p>
 </div>
 
 ---
