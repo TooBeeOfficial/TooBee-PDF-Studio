@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Dark rounded background -->
+  <rect width="64" height="64" rx="14" fill="#141418"/>
+
+  <!-- Wings -->
+  <ellipse cx="16" cy="24" rx="10" ry="6" fill="rgba(208,167,0,0.18)" stroke="#d0a700" stroke-width="1.4" transform="rotate(-20 16 24)"/>
+  <ellipse cx="48" cy="24" rx="10" ry="6" fill="rgba(208,167,0,0.18)" stroke="#d0a700" stroke-width="1.4" transform="rotate(20 48 24)"/>
+
+  <!-- Body -->
+  <ellipse cx="32" cy="40" rx="10" ry="13" fill="#d0a700"/>
+
+  <!-- Stripes -->
+  <rect x="22" y="35" width="20" height="3.5" rx="1.75" fill="#141418" opacity="0.85"/>
+  <rect x="22" y="43" width="20" height="3.5" rx="1.75" fill="#141418" opacity="0.85"/>
+
+  <!-- Head -->
+  <circle cx="32" cy="23" r="7.5" fill="#d0a700"/>
+
+  <!-- Eyes -->
+  <circle cx="28.5" cy="22" r="1.8" fill="#141418"/>
+  <circle cx="35.5" cy="22" r="1.8" fill="#141418"/>
+  <circle cx="29"   cy="21.5" r="0.6" fill="white"/>
+  <circle cx="36"   cy="21.5" r="0.6" fill="white"/>
+
+  <!-- Antennae -->
+  <line x1="28" y1="16" x2="23" y2="10" stroke="#d0a700" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="36" y1="16" x2="41" y2="10" stroke="#d0a700" stroke-width="1.6" stroke-linecap="round"/>
+  <circle cx="23" cy="9.5" r="1.8" fill="#d0a700"/>
+  <circle cx="41" cy="9.5" r="1.8" fill="#d0a700"/>
+
+  <!-- Stinger -->
+  <path d="M28 53 Q32 59 36 53" stroke="#141418" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+</svg>

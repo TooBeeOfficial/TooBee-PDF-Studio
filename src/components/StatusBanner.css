@@ -1,0 +1,31 @@
+.status-banner {
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.status-banner__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.status-banner--success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.status-banner--error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.status-banner--info {
+  background: rgba(208, 167, 0, 0.08);
+  border: 1px solid rgba(208, 167, 0, 0.2);
+  color: var(--text-secondary);
+}
