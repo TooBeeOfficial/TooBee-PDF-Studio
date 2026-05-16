@@ -1,7 +1,5 @@
 <div align="center">
-  <img src="./build/icon.png" alt="TooBee PDF Studio Logo" width="120" />
   <h1>TooBee PDF Studio</h1>
-  <p><b>The ultimate, lightweight, and blazingly fast PDF toolkit.</b></p>
 </div>
 
 ---
@@ -82,6 +80,3 @@ The compiled binaries and the setup installer (e.g., `TooBee PDF Studio Setup 1.
   ```
 
 ---
-<div align="center">
-  Crafted with precision for the modern workspace.
-</div>
