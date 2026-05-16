@@ -1,0 +1,76 @@
+{
+  "sidebar": {
+    "workspace": "Çalışma Alanı",
+    "dashboard": "Kontrol Paneli",
+    "documentTools": "Belge Araçları",
+    "merge": "PDF Birleştir",
+    "split": "Gelişmiş Bölme",
+    "compress": "Sıkıştır",
+    "rotate": "Döndür ve Sırala",
+    "extract": "Sayfaları Çıkar",
+    "extractFolder": "Klasöre Çıkar",
+    "studioEdit": "Stüdyo ve Düzenleme",
+    "studioEditor": "Stüdyo Editörü",
+    "sign": "PDF İmzala",
+    "securityPrivacy": "Güvenlik ve Gizlilik",
+    "protect": "PDF Koru",
+    "unlock": "PDF Kilidini Aç",
+    "conversion": "Dönüştürme",
+    "pdfToImage": "PDF'den Görüntüye",
+    "settings": "Ayarlar"
+  },
+  "home": {
+    "welcome": "TooBee PDF Studio'ya Hoş Geldiniz",
+    "subtitle": "En iyi gizli PDF araç kiti. Başlamak için bir araç seçin.",
+    "privacyTitle": "Önce Gizlilik Tasarımı",
+    "privacyDesc": "TooBee PDF Studio her şeyi doğrudan tarayıcınızda işler. Hassas belgeleriniz sunucularımıza asla dokunmaz.",
+    "badgePrivate": "%100 Gizli",
+    "badgeLocal": "Yerel İşleme",
+    "badgeNoCloud": "Bulut Yüklemesi Yok",
+    "tools": {
+      "mergeDesc": "Birden fazla dosyayı tek bir dosyada birleştirin.",
+      "splitDesc": "Bir PDF'yi ayrı dosyalara bölün.",
+      "compressDesc": "Kolay paylaşım için dosya boyutunu küçültün.",
+      "convertDesc": "PDF'leri görüntülere/görüntülerden dönüştürün.",
+      "editDesc": "Metni, şekilleri ve düzeni değiştirin.",
+      "signDesc": "Profesyonel dijital imzalar ekleyin.",
+      "rotateDesc": "Sayfa düzenini yönetin ve döndürün.",
+      "extractDesc": "Belirli sayfaları çıkarın.",
+      "extractFolderDesc": "Her sayfayı kendi PDF'sine bölün ve ZIP olarak indirin.",
+      "protectDesc": "Belgenizi 128 bit RC4 şifresiyle şifreleyin.",
+      "unlockDesc": "Şifre korumasını kaldırın ve özgürce dışa aktarın."
+    }
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "language": "Dil",
+    "theme": "Tema",
+    "darkMode": "Karanlık Mod",
+    "lightMode": "Aydınlık Mod",
+    "close": "Kapat"
+  },
+  "common": {
+    "addMore": "Daha Fazla Dosya Ekle",
+    "selectNew": "Yeni Dosya Seç",
+    "dropzoneTitle": "Dosyalarınızı buraya bırakın",
+    "dropzoneSubtitle": "Göz atmak için tıklayın veya sürükleyip bırakın. Desteklenen: PDF, Görüntüler, Word, Excel, Metin, HTML.",
+    "secure": "%100 Güvenli",
+    "privacyFirst": "Önce Gizlilik",
+    "processing": "İşleniyor...",
+    "download": "İndir",
+    "save": "Kaydet",
+    "format": "Biçim",
+    "quality": "Kalite"
+  },
+  "merge": {
+    "title": "Dosyaları Birleştir",
+    "desc": "Birden fazla dosyayı (PDF, Görüntü, Office, Metin) tek bir PDF'de birleştirin.",
+    "queue": "DOSYA KUYRUĞU",
+    "empty": "Henüz dosya eklenmedi.",
+    "mergeAll": "Tümünü Birleştir",
+    "ready": "Birleştirmeye hazır",
+    "preview": "Önizleme için dosya ekleyin",
+    "downloadMerged": "Birleştirilmiş PDF'yi İndir",
+    "fail": "Birleştirme başarısız oldu. Geçerli dosyalar olduğundan emin olun."
+  }
+}

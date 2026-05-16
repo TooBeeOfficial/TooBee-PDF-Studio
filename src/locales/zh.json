@@ -1,0 +1,76 @@
+{
+  "sidebar": {
+    "workspace": "工作区",
+    "dashboard": "仪表板",
+    "documentTools": "文档工具",
+    "merge": "合并 PDF",
+    "split": "高级拆分",
+    "compress": "压缩",
+    "rotate": "旋转和排序",
+    "extract": "提取页面",
+    "extractFolder": "提取到文件夹",
+    "studioEdit": "工作室编辑",
+    "studioEditor": "工作室编辑器",
+    "sign": "签署 PDF",
+    "securityPrivacy": "安全与隐私",
+    "protect": "保护 PDF",
+    "unlock": "解锁 PDF",
+    "conversion": "转换",
+    "pdfToImage": "PDF 转图像",
+    "settings": "设置"
+  },
+  "home": {
+    "welcome": "欢迎使用 TooBee PDF Studio",
+    "subtitle": "终极私人 PDF 工具包。选择一个工具开始。",
+    "privacyTitle": "隐私至上的设计",
+    "privacyDesc": "TooBee PDF Studio 直接在您的浏览器中处理所有内容。您的敏感文档永远不会接触我们的服务器。",
+    "badgePrivate": "100% 私人",
+    "badgeLocal": "本地处理",
+    "badgeNoCloud": "零云端上传",
+    "tools": {
+      "mergeDesc": "将多个文件合并为一个。",
+      "splitDesc": "将 PDF 拆分为单独的文件。",
+      "compressDesc": "减小文件大小以便轻松共享。",
+      "convertDesc": "将 PDF 与图像相互转换。",
+      "editDesc": "修改文本、形状和布局。",
+      "signDesc": "添加专业的数字签名。",
+      "rotateDesc": "管理和旋转页面布局。",
+      "extractDesc": "提取特定页面。",
+      "extractFolderDesc": "将每一页拆分为其自己的 PDF 并作为 ZIP 下载。",
+      "protectDesc": "使用 128 位 RC4 密码加密您的文档。",
+      "unlockDesc": "删除密码保护并自由导出。"
+    }
+  },
+  "settings": {
+    "title": "设置",
+    "language": "语言",
+    "theme": "主题",
+    "darkMode": "深色模式",
+    "lightMode": "浅色模式",
+    "close": "关闭"
+  },
+  "common": {
+    "addMore": "添加更多文件",
+    "selectNew": "选择新文件",
+    "dropzoneTitle": "将文件拖放到此处",
+    "dropzoneSubtitle": "单击浏览或拖放至此处。支持：PDF、图像、Word、Excel、文本、HTML。",
+    "secure": "100% 安全",
+    "privacyFirst": "隐私至上",
+    "processing": "处理中...",
+    "download": "下载",
+    "save": "保存",
+    "format": "格式",
+    "quality": "质量"
+  },
+  "merge": {
+    "title": "合并文件",
+    "desc": "将多个文件（PDF、图像、Office、文本）合并为一个 PDF。",
+    "queue": "文件队列",
+    "empty": "尚未添加文件。",
+    "mergeAll": "合并所有文件",
+    "ready": "文件已准备好合并",
+    "preview": "添加文件以查看预览",
+    "downloadMerged": "下载合并的 PDF",
+    "fail": "无法合并文件。请确保它们有效。"
+  }
+}

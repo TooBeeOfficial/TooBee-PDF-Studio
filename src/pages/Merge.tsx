@@ -1,15 +1,25 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import FileUploader from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
 import { Download, Layers, Trash2, Eye, FileUp } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { useToolStore } from '../store/useToolStore';
+import { normalizeToPdf } from '../utils/fileConverter';
 
 export default function Merge() {
-  const [files, setFiles] = useState<File[]>([]);
+  const { t } = useTranslation();
+  const { mergeFiles: files, setMergeFiles: setFiles } = useToolStore();
   const [isProcessing, setIsProcessing] = useState(false);
   const [mergedPdfUrl, setMergedPdfUrl] = useState<string | null>(null);
   const [mergedBytes, setMergedBytes] = useState<Uint8Array | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return () => {
+      if (mergedPdfUrl) URL.revokeObjectURL(mergedPdfUrl);
+    };
+  }, [mergedPdfUrl]);
 
   const handleFilesSelected = (newFiles: File[]) => {
     setFiles([...files, ...newFiles]);
@@ -29,10 +39,14 @@ export default function Merge() {
     try {
       const mergedPdf = await PDFDocument.create();
       for (const file of files) {
-        const buffer = await file.arrayBuffer();
-        const pdf = await PDFDocument.load(buffer);
-        const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-        copiedPages.forEach((page) => mergedPdf.addPage(page));
+        try {
+          const buffer = await normalizeToPdf(file);
+          const pdf = await PDFDocument.load(buffer);
+          const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+          copiedPages.forEach((page) => mergedPdf.addPage(page));
+        } catch (err) {
+          console.warn(`Could not process file ${file.name}`, err);
+        }
       }
       const bytes = await mergedPdf.save();
       setMergedBytes(bytes);
@@ -40,7 +54,7 @@ export default function Merge() {
       setMergedPdfUrl(URL.createObjectURL(blob));
     } catch (e) {
       console.error("Merge failed", e);
-      alert("Failed to merge PDFs. Ensure they are valid files.");
+      alert(t('merge.fail'));
     } finally {
       setIsProcessing(false);
     }
@@ -50,13 +64,13 @@ export default function Merge() {
     <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <header className="view-header">
         <div>
-          <h1>Merge PDFs</h1>
-          <p>Combine multiple PDF documents into a single, cohesive file.</p>
+          <h1>{t('merge.title')}</h1>
+          <p>{t('merge.desc')}</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           {files.length > 0 && (
             <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
-              <FileUp size={18} /> Add More PDFs
+              <FileUp size={18} /> {t('common.addMore')}
             </button>
           )}
           <input 
@@ -68,7 +82,6 @@ export default function Merge() {
               }
             }} 
             style={{ display: 'none' }} 
-            accept=".pdf"
             multiple
           />
         </div>
@@ -77,9 +90,9 @@ export default function Merge() {
       <div className="view-body" style={{ flex: 1, display: 'flex', gap: '1.5rem', minHeight: 0 }}>
         <div style={{ width: '360px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto' }}>
           <div className="card glass">
-            <h3 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>FILE QUEUE</h3>
+            <h3 style={{ fontSize: '0.9rem', marginBottom: '1rem', color: 'var(--text-secondary)' }}>{t('merge.queue')}</h3>
             {files.length === 0 ? (
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '2rem' }}>No files added yet.</p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textAlign: 'center', padding: '2rem' }}>{t('merge.empty')}</p>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {files.map((f, i) => (
@@ -97,7 +110,7 @@ export default function Merge() {
               disabled={files.length < 2 || isProcessing}
               style={{ width: '100%', marginTop: '1.5rem' }}
             >
-              {isProcessing ? 'Processing...' : 'Merge All Files'}
+              {isProcessing ? t('common.processing') : t('merge.mergeAll')}
             </button>
           </div>
 
@@ -112,7 +125,7 @@ export default function Merge() {
           ) : (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', flexDirection: 'column', gap: '1rem' }}>
               <Eye size={48} opacity={0.2} />
-              <p>{files.length > 0 ? "Files ready to merge" : "Add files to see the preview"}</p>
+              <p>{files.length > 0 ? t('merge.ready') : t('merge.preview')}</p>
             </div>
           )}
           {mergedPdfUrl && (
@@ -127,7 +140,7 @@ export default function Merge() {
                 }}
                 style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
               >
-                <Download size={18} /> Download Merged PDF
+                <Download size={18} /> {t('merge.downloadMerged')}
               </button>
             </div>
           )}

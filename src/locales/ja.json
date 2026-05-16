@@ -1,0 +1,76 @@
+{
+  "sidebar": {
+    "workspace": "ワークスペース",
+    "dashboard": "ダッシュボード",
+    "documentTools": "ドキュメントツール",
+    "merge": "PDF結合",
+    "split": "高度な分割",
+    "compress": "圧縮",
+    "rotate": "回転と並べ替え",
+    "extract": "ページ抽出",
+    "extractFolder": "フォルダーに抽出",
+    "studioEdit": "スタジオ編集",
+    "studioEditor": "スタジオエディター",
+    "sign": "PDF署名",
+    "securityPrivacy": "セキュリティとプライバシー",
+    "protect": "PDF保護",
+    "unlock": "PDFロック解除",
+    "conversion": "変換",
+    "pdfToImage": "PDFから画像へ",
+    "settings": "設定"
+  },
+  "home": {
+    "welcome": "TooBee PDF Studioへようこそ",
+    "subtitle": "究極のプライベートPDFツールキット。開始するツールを選択してください。",
+    "privacyTitle": "プライバシー第一の設計",
+    "privacyDesc": "TooBee PDF Studioはすべてブラウザ内で直接処理されます。機密文書が当社のサーバーに触れることはありません。",
+    "badgePrivate": "100% プライベート",
+    "badgeLocal": "ローカル処理",
+    "badgeNoCloud": "クラウドへのアップロードなし",
+    "tools": {
+      "mergeDesc": "複数のファイルを1つに結合します。",
+      "splitDesc": "PDFを別々のファイルに分割します。",
+      "compressDesc": "ファイルサイズを縮小して簡単に共有できます。",
+      "convertDesc": "PDFを画像に（から）変換します。",
+      "editDesc": "テキスト、図形、レイアウトを変更します。",
+      "signDesc": "プロフェッショナルなデジタル署名を追加します。",
+      "rotateDesc": "ページのレイアウトを管理および回転します。",
+      "extractDesc": "特定のページを抽出します。",
+      "extractFolderDesc": "すべてのページを個別のPDFに分割し、ZIPとしてダウンロードします。",
+      "protectDesc": "128ビットRC4パスワードでドキュメントを暗号化します。",
+      "unlockDesc": "パスワード保護を解除して自由にエクスポートします。"
+    }
+  },
+  "settings": {
+    "title": "設定",
+    "language": "言語",
+    "theme": "テーマ",
+    "darkMode": "ダークモード",
+    "lightMode": "ライトモード",
+    "close": "閉じる"
+  },
+  "common": {
+    "addMore": "ファイルを追加",
+    "selectNew": "新しいファイルを選択",
+    "dropzoneTitle": "ここにファイルをドロップ",
+    "dropzoneSubtitle": "クリックして参照するか、ここにドラッグ＆ドロップしてください。対応フォーマット：PDF、画像、Word、Excel、テキスト、HTML",
+    "secure": "100% 安全",
+    "privacyFirst": "プライバシー第一",
+    "processing": "処理中...",
+    "download": "ダウンロード",
+    "save": "保存",
+    "format": "フォーマット",
+    "quality": "品質"
+  },
+  "merge": {
+    "title": "ファイルを結合",
+    "desc": "複数のファイル（PDF、画像、Office、テキスト）を1つのPDFに結合します。",
+    "queue": "ファイルキュー",
+    "empty": "ファイルはまだ追加されていません。",
+    "mergeAll": "すべてのファイルを結合",
+    "ready": "結合の準備が完了しました",
+    "preview": "ファイルを追加してプレビューを表示",
+    "downloadMerged": "結合されたPDFをダウンロード",
+    "fail": "ファイルの結合に失敗しました。有効なファイルであることを確認してください。"
+  }
+}

@@ -10,6 +10,12 @@ import { usePdf } from '../context/PdfContext';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
+interface PageData {
+  id: string;
+  thumb: string;
+  pdfIndex: number;
+}
+
 export default function Rotate() {
   const { file: ctxFile, pdfBytes: ctxBytes, setActivePdf } = usePdf();
   const [file, setFile] = useState<File | null>(null);
@@ -19,18 +25,18 @@ export default function Rotate() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isGeneratingThumbs, setIsGeneratingThumbs] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  const [pageOrder, setPageOrder] = useState<number[]>([]);
-  const [thumbnails, setThumbnails] = useState<string[]>([]);
+  
+  const [pages, setPages] = useState<PageData[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
-  const generateAllThumbnails = async (bytes: Uint8Array) => {
+  const generateAllThumbnails = async (bytes: Uint8Array, initialPages: PageData[]) => {
     setIsGeneratingThumbs(true);
     try {
       const dataCopy = bytes.slice(0);
       const loadingTask = pdfjsLib.getDocument({ data: dataCopy });
       const pdf = await loadingTask.promise;
       
-      const newThumbs: string[] = [];
+      const newPages = [...initialPages];
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const viewport = page.getViewport({ scale: 0.4 }); 
@@ -40,10 +46,11 @@ export default function Rotate() {
         const ctx = canvas.getContext('2d');
         if (ctx) {
           await page.render({ canvasContext: ctx, viewport }).promise;
-          newThumbs.push(canvas.toDataURL('image/jpeg', 0.6));
+          newPages[i - 1].thumb = canvas.toDataURL('image/jpeg', 0.6);
+          // We update state incrementally so UI doesn't block entirely
+          setPages([...newPages]);
         }
       }
-      setThumbnails(newThumbs);
     } catch (e) {
       console.error("Failed to generate thumbnails", e);
     } finally {
@@ -51,12 +58,12 @@ export default function Rotate() {
     }
   };
 
-  const generateSingleThumbnail = async (bytes: Uint8Array, pageIndex: number) => {
+  const generateSingleThumbnail = async (bytes: Uint8Array, pdfIndex: number, gridIndex: number) => {
     try {
       const dataCopy = bytes.slice(0);
       const loadingTask = pdfjsLib.getDocument({ data: dataCopy });
       const pdf = await loadingTask.promise;
-      const page = await pdf.getPage(pageIndex + 1);
+      const page = await pdf.getPage(pdfIndex + 1);
       const viewport = page.getViewport({ scale: 0.4 }); 
       const canvas = document.createElement('canvas');
       canvas.width = viewport.width;
@@ -65,9 +72,9 @@ export default function Rotate() {
       if (ctx) {
         await page.render({ canvasContext: ctx, viewport }).promise;
         const newThumbUrl = canvas.toDataURL('image/jpeg', 0.6);
-        setThumbnails(prev => {
+        setPages(prev => {
           const updated = [...prev];
-          updated[pageIndex] = newThumbUrl;
+          updated[gridIndex].thumb = newThumbUrl;
           return updated;
         });
       }
@@ -88,39 +95,53 @@ export default function Rotate() {
       setCurrentPdfBytes(uint8Array);
       const pdfDoc = await PDFDocument.load(uint8Array);
       const totalPages = pdfDoc.getPageCount();
-      setPageOrder(Array.from({ length: totalPages }, (_, i) => i + 1));
+      
+      const initialPages = Array.from({ length: totalPages }, (_, i) => ({
+        id: crypto.randomUUID(),
+        thumb: '',
+        pdfIndex: i
+      }));
+      setPages(initialPages);
+
       const blob = new Blob([uint8Array], { type: 'application/pdf' });
       setCurrentPdfUrl(URL.createObjectURL(blob));
-      await generateAllThumbnails(uint8Array);
+      await generateAllThumbnails(uint8Array, initialPages);
     } catch (e) {
       console.error('Failed to load PDF', e);
     }
   };
 
   // Seed from context when component mounts (if a file was loaded on another page)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (ctxFile && ctxBytes && ctxBytes.length && !file) {
       setFile(ctxFile);
       setHasChanges(false);
       setCurrentPdfBytes(ctxBytes);
       PDFDocument.load(ctxBytes.slice(0)).then(pdfDoc => {
-        const n = pdfDoc.getPageCount();
-        setPageOrder(Array.from({ length: n }, (_, i) => i + 1));
+        const totalPages = pdfDoc.getPageCount();
+        const initialPages = Array.from({ length: totalPages }, (_, i) => ({
+          id: crypto.randomUUID(),
+          thumb: '',
+          pdfIndex: i
+        }));
+        setPages(initialPages);
         setCurrentPdfUrl(URL.createObjectURL(new Blob([ctxBytes!], { type: 'application/pdf' })));
-        generateAllThumbnails(ctxBytes!);
+        generateAllThumbnails(ctxBytes!, initialPages);
       });
     }
-  }, []); // only on mount
+  }, []);
 
-  const applyLiveReorder = async (newOrder: number[]) => {
-    if (!currentPdfBytes || newOrder.length === 0) return;
+  const applyLiveReorder = async (newPages: PageData[]) => {
+    if (!currentPdfBytes || newPages.length === 0) return;
     setIsProcessing(true);
     try {
       const originalPdf = await PDFDocument.load(currentPdfBytes);
       const newPdf = await PDFDocument.create();
-      const indices = newOrder.map(pageNum => pageNum - 1);
-      const copiedPages = await newPdf.copyPages(originalPdf, indices);
+      
+      // newPages is the visually ordered array. 
+      // its pdfIndex property holds the index in the CURRENT currentPdfBytes.
+      const newOrder = newPages.map(p => p.pdfIndex);
+      const copiedPages = await newPdf.copyPages(originalPdf, newOrder);
       copiedPages.forEach(page => newPdf.addPage(page));
 
       const newPdfBytes = await newPdf.save();
@@ -128,8 +149,10 @@ export default function Rotate() {
       setHasChanges(true);
       const blob = new Blob([newPdfBytes], { type: 'application/pdf' });
       setCurrentPdfUrl(URL.createObjectURL(blob));
-      setThumbnails(prev => newOrder.map(pageNum => prev[pageNum - 1]));
-      setPageOrder(Array.from({ length: newOrder.length }, (_, i) => i + 1));
+      
+      // Now update the pdfIndex to match the new currentPdfBytes array index
+      const updatedPages = newPages.map((p, i) => ({ ...p, pdfIndex: i }));
+      setPages(updatedPages);
     } catch (error) {
       console.error("Error applying live reorder:", error);
     } finally {
@@ -138,14 +161,14 @@ export default function Rotate() {
   };
 
   const movePage = (currentIndex: number, direction: 'left' | 'right') => {
-    const newOrder = [...pageOrder];
+    const newPages = [...pages];
     if (direction === 'left' && currentIndex > 0) {
-      [newOrder[currentIndex - 1], newOrder[currentIndex]] = [newOrder[currentIndex], newOrder[currentIndex - 1]];
-    } else if (direction === 'right' && currentIndex < newOrder.length - 1) {
-      [newOrder[currentIndex + 1], newOrder[currentIndex]] = [newOrder[currentIndex], newOrder[currentIndex + 1]];
+      [newPages[currentIndex - 1], newPages[currentIndex]] = [newPages[currentIndex], newPages[currentIndex - 1]];
+    } else if (direction === 'right' && currentIndex < newPages.length - 1) {
+      [newPages[currentIndex + 1], newPages[currentIndex]] = [newPages[currentIndex], newPages[currentIndex + 1]];
     }
-    setPageOrder(newOrder);
-    applyLiveReorder(newOrder);
+    setPages(newPages);
+    applyLiveReorder(newPages);
   };
 
   const rotateSinglePage = async (gridIndex: number) => {
@@ -153,9 +176,9 @@ export default function Rotate() {
     setIsProcessing(true);
     try {
       const pdfDoc = await PDFDocument.load(currentPdfBytes);
-      const pages = pdfDoc.getPages();
-      const targetIndex = pageOrder[gridIndex] - 1;
-      const page = pages[targetIndex];
+      const pdfPages = pdfDoc.getPages();
+      const targetIndex = pages[gridIndex].pdfIndex;
+      const page = pdfPages[targetIndex];
       page.setRotation(degrees(page.getRotation().angle + 90));
 
       const newPdfBytes = await pdfDoc.save();
@@ -163,7 +186,7 @@ export default function Rotate() {
       setHasChanges(true);
       const blob = new Blob([newPdfBytes], { type: 'application/pdf' });
       setCurrentPdfUrl(URL.createObjectURL(blob));
-      await generateSingleThumbnail(newPdfBytes, targetIndex);
+      await generateSingleThumbnail(newPdfBytes, targetIndex, gridIndex);
     } catch (error) {
       console.error("Error rotating single page:", error);
     } finally {
@@ -172,16 +195,16 @@ export default function Rotate() {
   };
 
   const deletePage = async (gridIndex: number) => {
-    if (!currentPdfBytes || pageOrder.length <= 1) return;
+    if (!currentPdfBytes || pages.length <= 1) return;
     setIsProcessing(true);
     try {
-      const newOrder = [...pageOrder];
-      newOrder.splice(gridIndex, 1);
+      const newPages = [...pages];
+      newPages.splice(gridIndex, 1);
       
+      const newOrder = newPages.map(p => p.pdfIndex);
       const originalPdf = await PDFDocument.load(currentPdfBytes);
       const newPdf = await PDFDocument.create();
-      const indices = newOrder.map(pageNum => pageNum - 1);
-      const copiedPages = await newPdf.copyPages(originalPdf, indices);
+      const copiedPages = await newPdf.copyPages(originalPdf, newOrder);
       copiedPages.forEach(page => newPdf.addPage(page));
 
       const newPdfBytes = await newPdf.save();
@@ -190,11 +213,8 @@ export default function Rotate() {
       const blob = new Blob([newPdfBytes], { type: 'application/pdf' });
       setCurrentPdfUrl(URL.createObjectURL(blob));
       
-      const newThumbnails = [...thumbnails];
-      newThumbnails.splice(pageOrder[gridIndex] - 1, 1);
-      setThumbnails(newThumbnails);
-      
-      setPageOrder(Array.from({ length: newOrder.length }, (_, i) => i + 1));
+      const updatedPages = newPages.map((p, i) => ({ ...p, pdfIndex: i }));
+      setPages(updatedPages);
     } catch (e) {
       console.error("Error deleting page", e);
     } finally {
@@ -237,7 +257,12 @@ export default function Rotate() {
               setHasChanges(true);
               const blob = new Blob([bytes.buffer], { type: 'application/pdf' });
               setCurrentPdfUrl(URL.createObjectURL(blob));
-              await generateAllThumbnails(bytes);
+              
+              // Regenerate all thumbnails
+              const updatedPages = pages.map(p => ({ ...p, thumb: '' }));
+              setPages(updatedPages);
+              await generateAllThumbnails(bytes, updatedPages);
+              
               setIsProcessing(false);
             }}>
               <RefreshCw size={18} className={isProcessing ? 'spin' : ''} /> Rotate All 90°
@@ -273,9 +298,9 @@ export default function Rotate() {
                 gap: '1rem', 
               }}>
                 <AnimatePresence>
-                  {pageOrder.map((pageNum, index) => (
+                  {pages.map((page, index) => (
                     <motion.div 
-                      key={`pos-${pageNum}`}
+                      key={page.id}
                       layout
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -285,14 +310,14 @@ export default function Rotate() {
                       onDragOver={(e) => {
                         e.preventDefault();
                         if (draggedIndex === null || draggedIndex === index) return;
-                        const newOrder = [...pageOrder];
-                        const draggedItem = newOrder[draggedIndex];
-                        newOrder.splice(draggedIndex, 1);
-                        newOrder.splice(index, 0, draggedItem);
-                        setPageOrder(newOrder);
+                        const newPages = [...pages];
+                        const draggedItem = newPages[draggedIndex];
+                        newPages.splice(draggedIndex, 1);
+                        newPages.splice(index, 0, draggedItem);
+                        setPages(newPages);
                         setDraggedIndex(index);
                       }}
-                      onDrop={(e) => { e.preventDefault(); setDraggedIndex(null); applyLiveReorder(pageOrder); }}
+                      onDrop={(e) => { e.preventDefault(); setDraggedIndex(null); applyLiveReorder(pages); }}
                       className="card"
                       style={{ 
                         padding: '0.5rem', 
@@ -305,9 +330,9 @@ export default function Rotate() {
                       }}
                     >
                       <div style={{ height: '160px', backgroundColor: '#e2e8f0', position: 'relative', borderRadius: '0.4rem', overflow: 'hidden' }}>
-                        <span style={{ position: 'absolute', top: '0.4rem', left: '0.4rem', backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px', zIndex: 10 }}>P{pageNum}</span>
-                        {thumbnails[pageNum - 1] ? (
-                          <img src={thumbnails[pageNum - 1]} alt={`P${pageNum}`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} draggable={false} />
+                        <span style={{ position: 'absolute', top: '0.4rem', left: '0.4rem', backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px', zIndex: 10 }}>P{index + 1}</span>
+                        {page.thumb ? (
+                          <img src={page.thumb} alt={`P${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} draggable={false} />
                         ) : (
                           <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>...</div>
                         )}
@@ -317,7 +342,7 @@ export default function Rotate() {
                         <button className="btn btn-secondary" onClick={() => movePage(index, 'left')} disabled={index === 0} style={{ padding: '0.25rem' }}><ArrowLeft size={13} /></button>
                         <button className="btn btn-secondary" onClick={() => rotateSinglePage(index)} style={{ padding: '0.25rem', color: 'var(--accent)' }}><RotateCw size={13} /></button>
                         <button className="btn btn-secondary" onClick={() => deletePage(index)} style={{ padding: '0.25rem', color: '#f43f5e' }}><Trash2 size={13} /></button>
-                        <button className="btn btn-secondary" onClick={() => movePage(index, 'right')} disabled={index === pageOrder.length - 1} style={{ padding: '0.25rem' }}><ArrowRight size={13} /></button>
+                        <button className="btn btn-secondary" onClick={() => movePage(index, 'right')} disabled={index === pages.length - 1} style={{ padding: '0.25rem' }}><ArrowRight size={13} /></button>
                       </div>
                     </motion.div>
                   ))}

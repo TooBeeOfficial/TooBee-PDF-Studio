@@ -1,0 +1,76 @@
+{
+  "sidebar": {
+    "workspace": "Área de Trabajo",
+    "dashboard": "Panel de Control",
+    "documentTools": "Herramientas de Documentos",
+    "merge": "Unir PDF",
+    "split": "Dividir Avanzado",
+    "compress": "Comprimir",
+    "rotate": "Rotar y Ordenar",
+    "extract": "Extraer Páginas",
+    "extractFolder": "Extraer a Carpeta",
+    "studioEdit": "Estudio y Edición",
+    "studioEditor": "Editor de Estudio",
+    "sign": "Firmar PDF",
+    "securityPrivacy": "Seguridad y Privacidad",
+    "protect": "Proteger PDF",
+    "unlock": "Desbloquear PDF",
+    "conversion": "Conversión",
+    "pdfToImage": "PDF a Imagen",
+    "settings": "Ajustes"
+  },
+  "home": {
+    "welcome": "Bienvenido a TooBee PDF Studio",
+    "subtitle": "El kit de herramientas PDF privado definitivo. Selecciona una herramienta para comenzar.",
+    "privacyTitle": "Diseño Primero la Privacidad",
+    "privacyDesc": "TooBee PDF Studio procesa todo directamente en tu navegador. Tus documentos confidenciales nunca tocan nuestros servidores.",
+    "badgePrivate": "100% Privado",
+    "badgeLocal": "Procesamiento Local",
+    "badgeNoCloud": "Cero Subidas a la Nube",
+    "tools": {
+      "mergeDesc": "Combina múltiples archivos en uno.",
+      "splitDesc": "Divide un PDF en archivos separados.",
+      "compressDesc": "Reduce el tamaño del archivo para compartirlo fácilmente.",
+      "convertDesc": "Cambia PDF a/desde imágenes.",
+      "editDesc": "Modifica texto, formas y diseño.",
+      "signDesc": "Añade firmas digitales profesionales.",
+      "rotateDesc": "Gestiona y rota el diseño de las páginas.",
+      "extractDesc": "Extrae páginas específicas.",
+      "extractFolderDesc": "Divide cada página en su propio PDF y descárgalo como ZIP.",
+      "protectDesc": "Cifra tu documento con una contraseña RC4 de 128 bits.",
+      "unlockDesc": "Elimina la protección con contraseña y exporta libremente."
+    }
+  },
+  "settings": {
+    "title": "Ajustes",
+    "language": "Idioma",
+    "theme": "Tema",
+    "darkMode": "Modo Oscuro",
+    "lightMode": "Modo Claro",
+    "close": "Cerrar"
+  },
+  "common": {
+    "addMore": "Añadir Más Archivos",
+    "selectNew": "Seleccionar Nuevo Archivo",
+    "dropzoneTitle": "Suelta tus archivos aquí",
+    "dropzoneSubtitle": "Haz clic para buscar o arrastra y suelta aquí. Soportado: PDF, Imágenes, Word, Excel, Texto, HTML.",
+    "secure": "100% Seguro",
+    "privacyFirst": "Primero la Privacidad",
+    "processing": "Procesando...",
+    "download": "Descargar",
+    "save": "Guardar",
+    "format": "Formato",
+    "quality": "Calidad"
+  },
+  "merge": {
+    "title": "Unir Archivos",
+    "desc": "Combina varios archivos (PDF, Imágenes, Office, Texto) en un solo PDF coherente.",
+    "queue": "COLA DE ARCHIVOS",
+    "empty": "No hay archivos añadidos aún.",
+    "mergeAll": "Unir Todos los Archivos",
+    "ready": "Archivos listos para unir",
+    "preview": "Añade archivos para ver la vista previa",
+    "downloadMerged": "Descargar PDF Unido",
+    "fail": "Error al unir los archivos. Asegúrate de que sean válidos."
+  }
+}

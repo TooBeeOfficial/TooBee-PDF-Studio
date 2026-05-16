@@ -66,6 +66,10 @@ function PdfPage({ pageInfo, pdfDoc, zoom }: PageProps) {
     }
   }, [pdfDoc, pageInfo, zoom]);
 
+  useEffect(() => {
+    lastRenderedZoom.current = 0;
+  }, [pdfDoc]);
+
   // Lazy-render via IntersectionObserver
   useEffect(() => {
     const el = wrapperRef.current;
@@ -162,9 +166,11 @@ export default function PdfPreviewer({ pdfBytes }: Props) {
         if (cancelled) { doc.destroy(); return; }
 
         const infos: PageInfo[] = [];
+        let maxW = 0;
         for (let i = 1; i <= doc.numPages; i++) {
           const page = await doc.getPage(i);
           const vp = page.getViewport({ scale: BASE_RENDER_SCALE });
+          if (vp.width > maxW) maxW = vp.width;
           infos.push({
             num: i,
             cssWidth: vp.width,
@@ -175,6 +181,18 @@ export default function PdfPreviewer({ pdfBytes }: Props) {
         if (cancelled) { doc.destroy(); return; }
         setPdfDoc(doc);
         setPages(infos);
+
+        // Auto-fit zoom
+        if (containerRef.current && maxW > 0) {
+          const availableWidth = containerRef.current.clientWidth - 80; // 40px padding on each side
+          let idealZoom = availableWidth / maxW;
+          if (idealZoom > 4) idealZoom = 4;
+          if (idealZoom < 0.25) idealZoom = 0.25;
+          
+          // Only update zoom if it's vastly different, to avoid jitter, 
+          // but for initial load, it's fine.
+          setZoom(idealZoom);
+        }
       } catch (e: any) {
         if (!cancelled) setError(e?.message ?? 'Failed to load PDF');
       }

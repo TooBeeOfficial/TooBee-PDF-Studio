@@ -1,14 +1,16 @@
-import { HashRouter as Router, Routes, Route, NavLink, useLocation } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import {
   LayoutGrid, FileStack, Scissors, Minimize2,
   RotateCw, Edit3, PenTool,
-  Lock, FileOutput, Image, FolderDown,
-  Moon, Sun, Unlock as UnlockIcon
+  Lock, FileOutput, Image, FolderDown, Settings,
+  Unlock as UnlockIcon
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
+import SettingsModal from './components/SettingsModal';
+import { useToolStore } from './store/useToolStore';
 
-// Pages
 import Home from './pages/Home';
 import Merge from './pages/Merge';
 import Split from './pages/Split';
@@ -22,63 +24,116 @@ import Rotate from './pages/Rotate';
 import Extract from './pages/Extract';
 import ExtractToFolder from './pages/ExtractToFolder';
 
-const navGroups = [
-  {
-    label: 'Workspace',
-    items: [
-      { path: '/', label: 'Dashboard', icon: LayoutGrid },
-    ]
-  },
-  {
-    label: 'Document Tools',
-    items: [
-      { path: '/merge', label: 'Merge PDFs', icon: FileStack },
-      { path: '/split', label: 'Advanced Split', icon: Scissors },
-      { path: '/compress', label: 'Compress', icon: Minimize2 },
-      { path: '/rotate', label: 'Rotate & Reorder', icon: RotateCw },
-      { path: '/extract', label: 'Extract Pages', icon: FileOutput },
-      { path: '/extract-folder', label: 'Extract to Folder', icon: FolderDown },
-    ]
-  },
-  {
-    label: 'Studio & Edit',
-    items: [
-      { path: '/edit', label: 'Studio Editor', icon: Edit3 },
-      { path: '/sign', label: 'Sign PDF', icon: PenTool },
-    ]
-  },
-  {
-    label: 'Security & Privacy',
-    items: [
-      { path: '/protect', label: 'Protect PDF', icon: Lock },
-      { path: '/unlock', label: 'Unlock PDF', icon: UnlockIcon },
-    ]
-  },
-  {
-    label: 'Conversion',
-    items: [
-      { path: '/convert', label: 'PDF to Image', icon: Image },
-    ]
-  }
-];
-
-function Sidebar() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+function OSIntegration() {
+  const navigate = useNavigate();
+  const { setMergeFiles, setSplitFile } = useToolStore();
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+    if (!(window as any).ipcRenderer) return;
 
-  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    const handleOpenFiles = async (_event: any, data: { files: string[], action: string | null, argv?: string[] }) => {
+      const { files, action } = data;
+      if (!files || files.length === 0) return;
+
+      const isMerge = action === 'merge' || files.length > 1;
+      
+      try {
+        const loadedFiles: File[] = [];
+
+        for (const filePath of files) {
+          const fileData = await (window as any).ipcRenderer.invoke('read-file', filePath);
+
+          let type = 'application/octet-stream';
+          const ext = fileData.name.split('.').pop()?.toLowerCase();
+
+          if (ext === 'pdf') type = 'application/pdf';
+          else if (ext === 'png') type = 'image/png';
+          else if (ext === 'jpg' || ext === 'jpeg') type = 'image/jpeg';
+          else if (ext === 'docx') type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+          else if (ext === 'xlsx') type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+          else if (ext === 'txt') type = 'text/plain';
+
+          const blob = new Blob([fileData.buffer], { type });
+          const file = new File([blob], fileData.name, { type });
+
+          loadedFiles.push(file);
+        }
+
+        if (isMerge) {
+          setMergeFiles(loadedFiles);
+        } else {
+          setSplitFile(loadedFiles[0]);
+        }
+
+        navigate(isMerge ? '/merge' : '/split');
+      } catch (err: any) {
+        console.error("Failed to process OS files:", err);
+      }
+    };
+
+    (window as any).ipcRenderer.on('open-files', handleOpenFiles);
+
+    (window as any).ipcRenderer.invoke('get-pending-files').then((data: any) => {
+      if (data && data.files && data.files.length > 0) {
+        handleOpenFiles(null, data);
+      }
+    });
+
+    return () => {
+      (window as any).ipcRenderer.off('open-files', handleOpenFiles);
+    };
+  }, [navigate, setMergeFiles, setSplitFile]);
+
+  return null;
+}
+
+function Sidebar({ theme, toggleTheme, onOpenSettings }: { theme: 'light' | 'dark', toggleTheme: () => void, onOpenSettings: () => void }) {
+  const { t } = useTranslation();
+
+  const navGroups = [
+    {
+      label: t('sidebar.workspace'),
+      items: [
+        { path: '/', label: t('sidebar.dashboard'), icon: LayoutGrid },
+      ]
+    },
+    {
+      label: t('sidebar.documentTools'),
+      items: [
+        { path: '/merge', label: t('sidebar.merge'), icon: FileStack },
+        { path: '/split', label: t('sidebar.split'), icon: Scissors },
+        { path: '/compress', label: t('sidebar.compress'), icon: Minimize2 },
+        { path: '/rotate', label: t('sidebar.rotate'), icon: RotateCw },
+        { path: '/extract', label: t('sidebar.extract'), icon: FileOutput },
+        { path: '/extract-folder', label: t('sidebar.extractFolder'), icon: FolderDown },
+      ]
+    },
+    {
+      label: t('sidebar.studioEdit'),
+      items: [
+        { path: '/edit', label: t('sidebar.studioEditor'), icon: Edit3 },
+        { path: '/sign', label: t('sidebar.sign'), icon: PenTool },
+      ]
+    },
+    {
+      label: t('sidebar.securityPrivacy'),
+      items: [
+        { path: '/protect', label: t('sidebar.protect'), icon: Lock },
+        { path: '/unlock', label: t('sidebar.unlock'), icon: UnlockIcon },
+      ]
+    },
+    {
+      label: t('sidebar.conversion'),
+      items: [
+        { path: '/convert', label: t('sidebar.pdfToImage'), icon: Image },
+      ]
+    }
+  ];
 
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <img
-          src="./bee-logo.svg"
-          alt="TooBee bee logo"
-          style={{ width: 32, height: 32, flexShrink: 0 }}
-        />
+        <img src="./bee-logo.svg" alt="TooBee bee logo" style={{ width: 32, height: 32, flexShrink: 0 }} />
         TooBee <span>Studio</span>
       </div>
 
@@ -87,23 +142,19 @@ function Sidebar() {
           <div key={group.label} className="nav-group">
             <div className="nav-label">{group.label}</div>
             {group.items.map(item => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-              >
-                <item.icon size={18} />
-                <span>{item.label}</span>
-              </NavLink>
+               <NavLink key={item.path} to={item.path} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                 <item.icon size={18} />
+                 <span>{item.label}</span>
+               </NavLink>
             ))}
           </div>
         ))}
       </nav>
 
       <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)' }}>
-        <button className="btn btn-secondary" onClick={toggleTheme} style={{ width: '100%', justifyContent: 'flex-start' }}>
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+        <button className="btn btn-secondary" onClick={onOpenSettings} style={{ width: '100%', justifyContent: 'flex-start' }}>
+          <Settings size={18} />
+          <span>{t('sidebar.settings')}</span>
         </button>
       </div>
     </aside>
@@ -142,13 +193,29 @@ function AnimatedRoutes() {
 }
 
 export default function App() {
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+
   return (
     <Router>
+      <OSIntegration />
       <div className="app-container">
-        <Sidebar />
+        <Sidebar theme={theme} toggleTheme={toggleTheme} onOpenSettings={() => setIsSettingsOpen(true)} />
         <main className="main-content">
           <AnimatedRoutes />
         </main>
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          theme={theme}
+          toggleTheme={toggleTheme}
+        />
       </div>
     </Router>
   );

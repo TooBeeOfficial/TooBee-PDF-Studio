@@ -1,0 +1,76 @@
+{
+  "sidebar": {
+    "workspace": "Workspace",
+    "dashboard": "Dashboard",
+    "documentTools": "Document Tools",
+    "merge": "Merge PDFs",
+    "split": "Advanced Split",
+    "compress": "Compress",
+    "rotate": "Rotate & Reorder",
+    "extract": "Extract Pages",
+    "extractFolder": "Extract to Folder",
+    "studioEdit": "Studio & Edit",
+    "studioEditor": "Studio Editor",
+    "sign": "Sign PDF",
+    "securityPrivacy": "Security & Privacy",
+    "protect": "Protect PDF",
+    "unlock": "Unlock PDF",
+    "conversion": "Conversion",
+    "pdfToImage": "PDF to Image",
+    "settings": "Settings"
+  },
+  "home": {
+    "welcome": "Welcome to TooBee PDF Studio",
+    "subtitle": "The ultimate private PDF toolkit. Select a tool to begin.",
+    "privacyTitle": "Privacy First Design",
+    "privacyDesc": "TooBee PDF Studio processes everything directly in your browser. Your sensitive documents never touch our servers, ensuring 100% privacy and security.",
+    "badgePrivate": "100% Private",
+    "badgeLocal": "Local Processing",
+    "badgeNoCloud": "Zero Cloud Uploads",
+    "tools": {
+      "mergeDesc": "Combine multiple files into one.",
+      "splitDesc": "Break a PDF into separate files.",
+      "compressDesc": "Reduce file size for easier sharing.",
+      "convertDesc": "Change PDFs to/from images.",
+      "editDesc": "Modify text, shapes, and layout.",
+      "signDesc": "Add professional digital signatures.",
+      "rotateDesc": "Manage and spin page layout.",
+      "extractDesc": "Pull out specific pages.",
+      "extractFolderDesc": "Split every page into its own PDF and download as a ZIP.",
+      "protectDesc": "Encrypt your document with a 128-bit RC4 password.",
+      "unlockDesc": "Remove password protection and export freely."
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "theme": "Theme",
+    "darkMode": "Dark Mode",
+    "lightMode": "Light Mode",
+    "close": "Close"
+  },
+  "common": {
+    "addMore": "Add More Files",
+    "selectNew": "Select New File",
+    "dropzoneTitle": "Drop your files here",
+    "dropzoneSubtitle": "Click to browse or drag and drop your files here. Supported formats: PDF, Images, Word, Excel, Text, HTML.",
+    "secure": "100% Secure",
+    "privacyFirst": "Privacy-First",
+    "processing": "Processing...",
+    "download": "Download",
+    "save": "Save",
+    "format": "Format",
+    "quality": "Quality"
+  },
+  "merge": {
+    "title": "Merge Files",
+    "desc": "Combine multiple files (PDFs, Images, Office Docs, Text) into a single, cohesive PDF.",
+    "queue": "FILE QUEUE",
+    "empty": "No files added yet.",
+    "mergeAll": "Merge All Files",
+    "ready": "Files ready to merge",
+    "preview": "Add files to see the preview",
+    "downloadMerged": "Download Merged PDF",
+    "fail": "Failed to merge files. Ensure they are valid."
+  }
+}
