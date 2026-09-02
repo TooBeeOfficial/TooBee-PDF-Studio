@@ -26,17 +26,24 @@ import ExtractToFolder from './pages/ExtractToFolder';
 
 function OSIntegration() {
   const navigate = useNavigate();
-  const { setMergeFiles, setSplitFile } = useToolStore();
+  const { setMergeFiles, setDocument } = useToolStore();
 
   useEffect(() => {
-    if (!(window as any).ipcRenderer) return;
+    if (!(window as any).ipcRenderer) {
+      console.warn('[OSIntegration] window.ipcRenderer is not available — not running inside Electron, or preload failed to attach it.');
+      return;
+    }
 
     const handleOpenFiles = async (_event: any, data: { files: string[], action: string | null, argv?: string[] }) => {
+      console.log('[OSIntegration] open-files payload received:', data);
       const { files, action } = data;
-      if (!files || files.length === 0) return;
+      if (!files || files.length === 0) {
+        console.log('[OSIntegration] payload had no files, ignoring.');
+        return;
+      }
 
       const isMerge = action === 'merge' || files.length > 1;
-      
+
       try {
         const loadedFiles: File[] = [];
 
@@ -60,29 +67,36 @@ function OSIntegration() {
         }
 
         if (isMerge) {
+          console.log('[OSIntegration] loaded', loadedFiles.length, 'file(s) into merge queue, navigating to /merge');
           setMergeFiles(loadedFiles);
         } else {
-          setSplitFile(loadedFiles[0]);
+          console.log('[OSIntegration] loaded file into shared document:', loadedFiles[0].name, 'navigating to /split');
+          const bytes = new Uint8Array(await loadedFiles[0].arrayBuffer());
+          setDocument(loadedFiles[0], bytes);
         }
 
         navigate(isMerge ? '/merge' : '/split');
       } catch (err: any) {
-        console.error("Failed to process OS files:", err);
+        console.error("[OSIntegration] Failed to process OS files:", err);
       }
     };
 
-    (window as any).ipcRenderer.on('open-files', handleOpenFiles);
+    const unsubscribe = (window as any).ipcRenderer.on('open-files', handleOpenFiles);
 
+    console.log('[OSIntegration] mounted, asking main process for any pending files...');
     (window as any).ipcRenderer.invoke('get-pending-files').then((data: any) => {
+      console.log('[OSIntegration] get-pending-files resolved with:', data);
       if (data && data.files && data.files.length > 0) {
         handleOpenFiles(null, data);
       }
+    }).catch((err: any) => {
+      console.error('[OSIntegration] get-pending-files invoke failed:', err);
     });
 
     return () => {
-      (window as any).ipcRenderer.off('open-files', handleOpenFiles);
+      unsubscribe?.();
     };
-  }, [navigate, setMergeFiles, setSplitFile]);
+  }, [navigate, setMergeFiles, setDocument]);
 
   return null;
 }

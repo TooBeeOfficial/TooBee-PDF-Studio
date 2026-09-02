@@ -2,7 +2,9 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import FileUploader from '../components/FileUploader';
+import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import { toPdfFile } from '../utils/fileConverter';
+import { useToolStore } from '../store/useToolStore';
 import {
   Download, AlignLeft, AlignCenter, AlignRight,
   Trash2, Save, Bold, Italic, Type as TypeIcon,
@@ -51,8 +53,8 @@ const SYSTEM_FONTS = [
 ];
 
 export default function Edit() {
-  const [file, setFile] = useState<File | null>(null);
-  const [currentPdfBytes, setCurrentPdfBytes] = useState<Uint8Array | null>(null);
+  const { document: sharedDoc, setDocument } = useToolStore();
+  const { file, bytes: currentPdfBytes } = sharedDoc;
   const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -88,6 +90,7 @@ export default function Edit() {
 
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
+  const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<{ id: string, type: 'move' | 'resize', startX: number, startY: number, initialX: number, initialY: number, initialW: number, initialH: number } | null>(null);
 
@@ -121,13 +124,11 @@ export default function Edit() {
     return filtered.sort((a, b) => a === current ? -1 : b === current ? 1 : 0);
   }, [allFontFamilies, fontSearch, sel?.fontFamily, activeFontFamily]);
 
-  const renderPage = useCallback(async (pageNum: number, scale: number, bytes?: Uint8Array) => {
-    const data = bytes || currentPdfBytes;
-    if (!data || !mainCanvasRef.current) return;
+  const renderPage = useCallback(async (pageNum: number, scale: number) => {
+    if (!currentPdfBytes || !mainCanvasRef.current) return;
     try {
-      if (!pdfDocRef.current || bytes) {
-        if (pdfDocRef.current) await pdfDocRef.current.destroy();
-        pdfDocRef.current = await pdfjsLib.getDocument({ data: data.slice(0) }).promise;
+      if (!pdfDocRef.current) {
+        pdfDocRef.current = await pdfjsLib.getDocument({ data: currentPdfBytes.slice(0) }).promise;
         setNumPages(pdfDocRef.current.numPages);
       }
       const page = await pdfDocRef.current.getPage(pageNum);
@@ -149,8 +150,16 @@ export default function Edit() {
       ctx.resetTransform();
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      await page.render({ canvasContext: ctx, viewport }).promise;
-    } catch (e) { console.error(e); }
+      // pdf.js throws if a second render starts on the same canvas before the
+      // first finishes, so cancel any in-flight render before starting a new one.
+      renderTaskRef.current?.cancel();
+      const task = page.render({ canvasContext: ctx, viewport });
+      renderTaskRef.current = task;
+      await task.promise;
+      if (renderTaskRef.current === task) renderTaskRef.current = null;
+    } catch (e: any) {
+      if (e?.name !== 'RenderingCancelledException') console.error(e);
+    }
   }, [currentPdfBytes]);
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -180,12 +189,18 @@ export default function Edit() {
 
   const handleFilesSelected = async (files: File[]) => {
     if (!files.length) return;
-    const bytes = new Uint8Array(await files[0].arrayBuffer());
-    setCurrentPdfBytes(bytes);
-    setCurrentPdfUrl(URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })));
+    let f: File;
+    try {
+      f = await toPdfFile(files[0]);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Unsupported file type.');
+      return;
+    }
+    const bytes = new Uint8Array(await f.arrayBuffer());
     pdfDocRef.current = null;
-    setFile(files[0]);
-    renderPage(1, visualScale);
+    setDocument(f, bytes);
+    // The effect below re-renders once currentPdfBytes lands; calling renderPage
+    // here too would race it on the same canvas (stale closure, duplicate render).
   };
 
   const updateElement = (id: string, updates: Partial<EditElement>) => {
@@ -336,23 +351,45 @@ export default function Edit() {
         if (el.align === 'right') textXOffset = el.width - textWidth - 5;
 
         // For rotated pages, we draw relative to the box orientation
+        const textY = drawY + (el.height / 2) - (el.fontSize / 3);
         page.drawText(el.text, {
           x: drawX + textXOffset,
-          y: drawY + (el.height / 2) - (el.fontSize / 3),
+          y: textY,
           size: el.fontSize, font, color: rgb(tr, tg, tb),
         });
+
+        // pdf-lib has no text-decoration option, so underline is a manually drawn line
+        if (el.isUnderline) {
+          const underlineY = textY - el.fontSize * 0.12;
+          page.drawLine({
+            start: { x: drawX + textXOffset, y: underlineY },
+            end: { x: drawX + textXOffset + textWidth, y: underlineY },
+            thickness: Math.max(1, el.fontSize * 0.06),
+            color: rgb(tr, tg, tb),
+          });
+        }
       }
       const bytes = await pdfDoc.save();
-      setCurrentPdfBytes(bytes);
-      setCurrentPdfUrl(URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })));
       setElements([]);
 
-      // Force reload the new document
+      // Force the effect below to reload and re-render the burned document;
+      // calling renderPage directly here too would race it on the same canvas.
       pdfDocRef.current = null;
-      renderPage(currentPage, visualScale, bytes);
+      // The burned result becomes the new working document, so other tools
+      // pick up these edits instead of the pre-edit file.
+      setDocument(new File([bytes], file?.name || 'edited.pdf', { type: 'application/pdf' }), bytes);
     } catch (e) { console.error(e); }
     finally { setIsProcessing(false); }
   };
+
+  // Keep the download link (and pdf.js source) in sync with the shared document,
+  // however it got there — burned here, or edited by another tool and carried over.
+  useEffect(() => {
+    if (!currentPdfBytes) { setCurrentPdfUrl(null); return; }
+    const url = URL.createObjectURL(new Blob([currentPdfBytes], { type: 'application/pdf' }));
+    setCurrentPdfUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [currentPdfBytes]);
 
   useEffect(() => { if (currentPdfBytes) renderPage(currentPage, visualScale); }, [currentPage, visualScale, renderPage]);
 
@@ -361,6 +398,13 @@ export default function Edit() {
       <header className="view-header">
         <div><h1>Studio Editor</h1><p>High-precision document markup engine.</p></div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          {numPages > 1 && (
+            <div className="btn-group glass" style={{ display: 'flex', gap: '0.25rem', padding: '0.25rem', borderRadius: '0.5rem', alignItems: 'center' }}>
+              <button className="btn btn-secondary" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1}>Prev</button>
+              <span style={{ fontSize: '0.85rem', padding: '0 0.5rem', whiteSpace: 'nowrap' }}>Page {currentPage} of {numPages}</span>
+              <button className="btn btn-secondary" onClick={() => setCurrentPage(p => Math.min(numPages, p + 1))} disabled={currentPage >= numPages}>Next</button>
+            </div>
+          )}
           <div className="btn-group glass" style={{ display: 'flex', gap: '0.25rem', padding: '0.25rem', borderRadius: '0.5rem' }}>
             <button className="btn btn-secondary" onClick={() => setVisualScale(s => Math.max(0.25, s - 0.2))}><ZoomOut size={18} /></button>
             <span style={{ minWidth: '50px', textAlign: 'center', fontSize: '0.85rem' }}>{Math.round(visualScale * 100)}%</span>
@@ -379,8 +423,8 @@ export default function Edit() {
                 handleFilesSelected(Array.from(e.target.files));
               }
             }} 
-            style={{ display: 'none' }} 
-            accept=".pdf"
+            style={{ display: 'none' }}
+            accept={ACCEPTED_FILE_EXT}
           />
           <button className="btn btn-primary" onClick={burnToPdf} disabled={isProcessing}><Save size={18} /> Burn Changes</button>
           {currentPdfUrl && <button className="btn btn-secondary" onClick={() => { const a = document.createElement('a'); a.href = currentPdfUrl; a.download = 'edited.pdf'; a.click(); }}><Download size={18} /> Download</button>}
@@ -515,6 +559,7 @@ export default function Edit() {
                     fontSize: activeFontSize * visualScale,
                     fontWeight: activeBold ? 'bold' : 'normal',
                     fontStyle: activeItalic ? 'italic' : 'normal',
+                    textDecoration: activeUnderline ? 'underline' : 'none',
                     fontFamily: activeFontFamily,
                     zIndex: 10,
                     boxShadow: '0 0 20px rgba(244, 63, 94, 0.2)',
@@ -547,6 +592,7 @@ export default function Edit() {
                       fontSize: el.fontSize * visualScale,
                       fontWeight: el.isBold ? 'bold' : 'normal',
                       fontStyle: el.isItalic ? 'italic' : 'normal',
+                      textDecoration: el.isUnderline ? 'underline' : 'none',
                       fontFamily: el.fontFamily,
                       boxShadow: selectedId === el.id ? '0 0 15px rgba(244, 63, 94, 0.4)' : 'none'
                     }}>

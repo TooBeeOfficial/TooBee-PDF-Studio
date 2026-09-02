@@ -2,18 +2,20 @@ import { useState, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import JSZip from 'jszip';
-import FileUploader from '../components/FileUploader';
+import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
 import StatusBanner from '../components/StatusBanner';
 import ProgressBar from '../components/ProgressBar';
 import { Download, FileImage, Layers, ZoomIn, ZoomOut, FileUp, Package } from 'lucide-react';
-import { usePdf } from '../context/PdfContext';
+import { useToolStore } from '../store/useToolStore';
+import { toPdfFile } from '../utils/fileConverter';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 interface ImageResult { url: string; page: number; }
 
 export default function Convert() {
-  const { file, setActivePdf } = usePdf();
+  const { document: doc, setDocument } = useToolStore();
+  const { file } = doc;
   const [images, setImages] = useState<ImageResult[]>([]);
   const [format, setFormat] = useState<'png' | 'jpg'>('png');
   const [scale, setScale] = useState<2 | 3>(2);
@@ -29,11 +31,17 @@ export default function Convert() {
 
   const revokeImages = (imgs: ImageResult[]) => imgs.forEach(img => URL.revokeObjectURL(img.url));
 
-  const handleFilesSelected = (newFiles: File[]) => {
+  const handleFilesSelected = async (newFiles: File[]) => {
     if (!newFiles.length) return;
-    const f = newFiles[0];
-    // Convert doesn't need pdfBytes in context, just the File for re-reading
-    setActivePdf(f, new Uint8Array());
+    let f: File;
+    try {
+      f = await toPdfFile(newFiles[0]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unsupported file type.');
+      return;
+    }
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    setDocument(f, bytes);
     revokeImages(images);
     setImages([]); setError(null); setSuccess(false); setProgress(0); setCurrentPage(0); setTotalPages(0);
   };
@@ -97,7 +105,7 @@ export default function Convert() {
         <div><h1>PDF to Image</h1><p>Convert every page of your PDF into high-resolution images.</p></div>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           {file && <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}><FileUp size={18} /> Select New PDF</button>}
-          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }} style={{ display: 'none' }} accept=".pdf" />
+          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }} style={{ display: 'none' }} accept={ACCEPTED_FILE_EXT} />
           {images.length > 0 && (
             <div style={{ display: 'flex', gap: '0.25rem', padding: '0.25rem', borderRadius: '0.5rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
               <button className="btn btn-secondary" onClick={() => setVisualScale(p => Math.max(0.4, p - 0.2))}><ZoomOut size={16} /></button>

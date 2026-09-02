@@ -2,11 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { PDFDocument, degrees } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import FileUploader from '../components/FileUploader';
+import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
 import { Download, RotateCw, Eye, ArrowLeft, ArrowRight, RefreshCw, Trash2, FileUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { usePdf } from '../context/PdfContext';
+import { useToolStore } from '../store/useToolStore';
+import { toPdfFile } from '../utils/fileConverter';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -17,15 +18,14 @@ interface PageData {
 }
 
 export default function Rotate() {
-  const { file: ctxFile, pdfBytes: ctxBytes, setActivePdf } = usePdf();
-  const [file, setFile] = useState<File | null>(null);
-  const [currentPdfBytes, setCurrentPdfBytes] = useState<Uint8Array | null>(null);
+  const { document: doc, setDocument } = useToolStore();
+  const { file, bytes: currentPdfBytes } = doc;
   const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isGeneratingThumbs, setIsGeneratingThumbs] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  
+
   const [pages, setPages] = useState<PageData[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
@@ -35,11 +35,11 @@ export default function Rotate() {
       const dataCopy = bytes.slice(0);
       const loadingTask = pdfjsLib.getDocument({ data: dataCopy });
       const pdf = await loadingTask.promise;
-      
+
       const newPages = [...initialPages];
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 0.4 }); 
+        const viewport = page.getViewport({ scale: 0.4 });
         const canvas = document.createElement('canvas');
         canvas.width = viewport.width;
         canvas.height = viewport.height;
@@ -64,7 +64,7 @@ export default function Rotate() {
       const loadingTask = pdfjsLib.getDocument({ data: dataCopy });
       const pdf = await loadingTask.promise;
       const page = await pdf.getPage(pdfIndex + 1);
-      const viewport = page.getViewport({ scale: 0.4 }); 
+      const viewport = page.getViewport({ scale: 0.4 });
       const canvas = document.createElement('canvas');
       canvas.width = viewport.width;
       canvas.height = viewport.height;
@@ -85,23 +85,27 @@ export default function Rotate() {
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (newFiles.length === 0) return;
-    const selectedFile = newFiles[0];
-    setFile(selectedFile);
+    let selectedFile: File;
+    try {
+      selectedFile = await toPdfFile(newFiles[0]);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Unsupported file type.');
+      return;
+    }
     setHasChanges(false);
     try {
       const buffer = await selectedFile.arrayBuffer();
       const uint8Array = new Uint8Array(buffer);
-      setActivePdf(selectedFile, uint8Array);
-      setCurrentPdfBytes(uint8Array);
       const pdfDoc = await PDFDocument.load(uint8Array);
       const totalPages = pdfDoc.getPageCount();
-      
+
       const initialPages = Array.from({ length: totalPages }, (_, i) => ({
         id: crypto.randomUUID(),
         thumb: '',
         pdfIndex: i
       }));
       setPages(initialPages);
+      setDocument(selectedFile, uint8Array);
 
       const blob = new Blob([uint8Array], { type: 'application/pdf' });
       setCurrentPdfUrl(URL.createObjectURL(blob));
@@ -111,13 +115,11 @@ export default function Rotate() {
     }
   };
 
-  // Seed from context when component mounts (if a file was loaded on another page)
+  // If a document is already loaded (e.g. edited in another tool) but this
+  // page hasn't generated thumbnails for it yet, do so now.
   useEffect(() => {
-    if (ctxFile && ctxBytes && ctxBytes.length && !file) {
-      setFile(ctxFile);
-      setHasChanges(false);
-      setCurrentPdfBytes(ctxBytes);
-      PDFDocument.load(ctxBytes.slice(0)).then(pdfDoc => {
+    if (currentPdfBytes && currentPdfBytes.length && pages.length === 0 && !isGeneratingThumbs) {
+      PDFDocument.load(currentPdfBytes.slice(0)).then(pdfDoc => {
         const totalPages = pdfDoc.getPageCount();
         const initialPages = Array.from({ length: totalPages }, (_, i) => ({
           id: crypto.randomUUID(),
@@ -125,31 +127,32 @@ export default function Rotate() {
           pdfIndex: i
         }));
         setPages(initialPages);
-        setCurrentPdfUrl(URL.createObjectURL(new Blob([ctxBytes!], { type: 'application/pdf' })));
-        generateAllThumbnails(ctxBytes!, initialPages);
+        setCurrentPdfUrl(URL.createObjectURL(new Blob([currentPdfBytes], { type: 'application/pdf' })));
+        generateAllThumbnails(currentPdfBytes, initialPages);
       });
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPdfBytes]);
 
   const applyLiveReorder = async (newPages: PageData[]) => {
-    if (!currentPdfBytes || newPages.length === 0) return;
+    if (!currentPdfBytes || !file || newPages.length === 0) return;
     setIsProcessing(true);
     try {
       const originalPdf = await PDFDocument.load(currentPdfBytes);
       const newPdf = await PDFDocument.create();
-      
-      // newPages is the visually ordered array. 
+
+      // newPages is the visually ordered array.
       // its pdfIndex property holds the index in the CURRENT currentPdfBytes.
       const newOrder = newPages.map(p => p.pdfIndex);
       const copiedPages = await newPdf.copyPages(originalPdf, newOrder);
       copiedPages.forEach(page => newPdf.addPage(page));
 
       const newPdfBytes = await newPdf.save();
-      setCurrentPdfBytes(newPdfBytes);
+      setDocument(new File([newPdfBytes], file.name, { type: 'application/pdf' }), newPdfBytes);
       setHasChanges(true);
       const blob = new Blob([newPdfBytes], { type: 'application/pdf' });
       setCurrentPdfUrl(URL.createObjectURL(blob));
-      
+
       // Now update the pdfIndex to match the new currentPdfBytes array index
       const updatedPages = newPages.map((p, i) => ({ ...p, pdfIndex: i }));
       setPages(updatedPages);
@@ -172,7 +175,7 @@ export default function Rotate() {
   };
 
   const rotateSinglePage = async (gridIndex: number) => {
-    if (!currentPdfBytes) return;
+    if (!currentPdfBytes || !file) return;
     setIsProcessing(true);
     try {
       const pdfDoc = await PDFDocument.load(currentPdfBytes);
@@ -182,7 +185,7 @@ export default function Rotate() {
       page.setRotation(degrees(page.getRotation().angle + 90));
 
       const newPdfBytes = await pdfDoc.save();
-      setCurrentPdfBytes(newPdfBytes);
+      setDocument(new File([newPdfBytes], file.name, { type: 'application/pdf' }), newPdfBytes);
       setHasChanges(true);
       const blob = new Blob([newPdfBytes], { type: 'application/pdf' });
       setCurrentPdfUrl(URL.createObjectURL(blob));
@@ -195,12 +198,12 @@ export default function Rotate() {
   };
 
   const deletePage = async (gridIndex: number) => {
-    if (!currentPdfBytes || pages.length <= 1) return;
+    if (!currentPdfBytes || !file || pages.length <= 1) return;
     setIsProcessing(true);
     try {
       const newPages = [...pages];
       newPages.splice(gridIndex, 1);
-      
+
       const newOrder = newPages.map(p => p.pdfIndex);
       const originalPdf = await PDFDocument.load(currentPdfBytes);
       const newPdf = await PDFDocument.create();
@@ -208,11 +211,11 @@ export default function Rotate() {
       copiedPages.forEach(page => newPdf.addPage(page));
 
       const newPdfBytes = await newPdf.save();
-      setCurrentPdfBytes(newPdfBytes);
+      setDocument(new File([newPdfBytes], file.name, { type: 'application/pdf' }), newPdfBytes);
       setHasChanges(true);
       const blob = new Blob([newPdfBytes], { type: 'application/pdf' });
       setCurrentPdfUrl(URL.createObjectURL(blob));
-      
+
       const updatedPages = newPages.map((p, i) => ({ ...p, pdfIndex: i }));
       setPages(updatedPages);
     } catch (e) {
@@ -235,34 +238,34 @@ export default function Rotate() {
               <FileUp size={18} /> Select New PDF
             </button>
           )}
-          <input 
-            type="file" 
-            ref={fileInputRef} 
+          <input
+            type="file"
+            ref={fileInputRef}
             onChange={(e) => {
               if (e.target.files?.length) {
                 handleFilesSelected(Array.from(e.target.files));
               }
-            }} 
-            style={{ display: 'none' }} 
-            accept=".pdf"
+            }}
+            style={{ display: 'none' }}
+            accept={ACCEPTED_FILE_EXT}
           />
           {file && (
             <button className="btn btn-secondary" onClick={async () => {
-              if (!currentPdfBytes) return;
+              if (!currentPdfBytes || !file) return;
               setIsProcessing(true);
               const pdfDoc = await PDFDocument.load(currentPdfBytes);
               pdfDoc.getPages().forEach(page => page.setRotation(degrees(page.getRotation().angle + 90)));
               const bytes = await pdfDoc.save();
-              setCurrentPdfBytes(bytes);
+              setDocument(new File([bytes], file.name, { type: 'application/pdf' }), bytes);
               setHasChanges(true);
               const blob = new Blob([bytes.buffer], { type: 'application/pdf' });
               setCurrentPdfUrl(URL.createObjectURL(blob));
-              
+
               // Regenerate all thumbnails
               const updatedPages = pages.map(p => ({ ...p, thumb: '' }));
               setPages(updatedPages);
               await generateAllThumbnails(bytes, updatedPages);
-              
+
               setIsProcessing(false);
             }}>
               <RefreshCw size={18} className={isProcessing ? 'spin' : ''} /> Rotate All 90°
@@ -284,7 +287,7 @@ export default function Rotate() {
       <div className="view-body" style={{ flex: 1, display: 'flex', gap: '1.5rem', minHeight: 0 }}>
         <div style={{ width: '360px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto' }}>
           {!file && <FileUploader onFilesSelected={handleFilesSelected} />}
-          
+
           {file && (
             <div className="card glass">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
@@ -292,14 +295,14 @@ export default function Rotate() {
                 {isGeneratingThumbs && <span style={{ fontSize: '0.75rem', color: 'var(--accent)' }}>Loading...</span>}
               </div>
 
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', 
-                gap: '1rem', 
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                gap: '1rem',
               }}>
                 <AnimatePresence>
                   {pages.map((page, index) => (
-                    <motion.div 
+                    <motion.div
                       key={page.id}
                       layout
                       initial={{ opacity: 0, scale: 0.8 }}
@@ -319,10 +322,10 @@ export default function Rotate() {
                       }}
                       onDrop={(e) => { e.preventDefault(); setDraggedIndex(null); applyLiveReorder(pages); }}
                       className="card"
-                      style={{ 
-                        padding: '0.5rem', 
-                        display: 'flex', 
-                        flexDirection: 'column', 
+                      style={{
+                        padding: '0.5rem',
+                        display: 'flex',
+                        flexDirection: 'column',
                         gap: '0.5rem',
                         cursor: 'grab',
                         opacity: draggedIndex === index ? 0.5 : 1,
@@ -337,7 +340,7 @@ export default function Rotate() {
                           <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>...</div>
                         )}
                       </div>
-                      
+
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <button className="btn btn-secondary" onClick={() => movePage(index, 'left')} disabled={index === 0} style={{ padding: '0.25rem' }}><ArrowLeft size={13} /></button>
                         <button className="btn btn-secondary" onClick={() => rotateSinglePage(index)} style={{ padding: '0.25rem', color: 'var(--accent)' }}><RotateCw size={13} /></button>

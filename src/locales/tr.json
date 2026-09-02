@@ -67,8 +67,6 @@
     "desc": "Birden fazla dosyayı (PDF, Görüntü, Office, Metin) tek bir PDF'de birleştirin.",
     "queue": "DOSYA KUYRUĞU",
     "empty": "Henüz dosya eklenmedi.",
-    "mergeAll": "Tümünü Birleştir",
-    "ready": "Birleştirmeye hazır",
     "preview": "Önizleme için dosya ekleyin",
     "downloadMerged": "Birleştirilmiş PDF'yi İndir",
     "fail": "Birleştirme başarısız oldu. Geçerli dosyalar olduğundan emin olun."

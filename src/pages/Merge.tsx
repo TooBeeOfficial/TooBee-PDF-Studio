@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import FileUploader from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
+import StatusBanner from '../components/StatusBanner';
 import { Download, Layers, Trash2, Eye, FileUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useToolStore } from '../store/useToolStore';
@@ -9,10 +10,11 @@ import { normalizeToPdf } from '../utils/fileConverter';
 
 export default function Merge() {
   const { t } = useTranslation();
-  const { mergeFiles: files, setMergeFiles: setFiles } = useToolStore();
+  const { mergeFiles: files, setMergeFiles: setFiles, setDocument } = useToolStore();
   const [isProcessing, setIsProcessing] = useState(false);
   const [mergedPdfUrl, setMergedPdfUrl] = useState<string | null>(null);
   const [mergedBytes, setMergedBytes] = useState<Uint8Array | null>(null);
+  const [mergeError, setMergeError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -21,43 +23,54 @@ export default function Merge() {
     };
   }, [mergedPdfUrl]);
 
+  // Keep the preview in sync with the queue automatically, instead of requiring
+  // an explicit "merge" click just to see what the combined document looks like.
+  useEffect(() => {
+    if (files.length === 0) {
+      setMergedBytes(null);
+      setMergedPdfUrl(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setIsProcessing(true);
+      try {
+        const mergedPdf = await PDFDocument.create();
+        for (const file of files) {
+          try {
+            const buffer = await normalizeToPdf(file);
+            const pdf = await PDFDocument.load(buffer);
+            const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+            copiedPages.forEach((page) => mergedPdf.addPage(page));
+          } catch (err) {
+            console.warn(`Could not process file ${file.name}`, err);
+          }
+        }
+        if (cancelled) return;
+        const bytes = await mergedPdf.save();
+        setMergedBytes(bytes);
+        setMergedPdfUrl(URL.createObjectURL(new Blob([bytes.buffer], { type: 'application/pdf' })));
+        setMergeError(null);
+        // The merged result becomes the new working document, so other tools
+        // (rotate, protect, ...) continue from it without a manual re-upload.
+        setDocument(new File([bytes], 'merged.pdf', { type: 'application/pdf' }), bytes);
+      } catch (e) {
+        if (cancelled) return;
+        console.error('Merge failed', e);
+        setMergeError(t('merge.fail'));
+      } finally {
+        if (!cancelled) setIsProcessing(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [files, t, setDocument]);
+
   const handleFilesSelected = (newFiles: File[]) => {
     setFiles([...files, ...newFiles]);
-    setMergedPdfUrl(null);
-    setMergedBytes(null);
   };
 
   const removeFile = (index: number) => {
     setFiles(files.filter((_, i) => i !== index));
-    setMergedPdfUrl(null);
-    setMergedBytes(null);
-  };
-
-  const mergePdfs = async () => {
-    if (files.length < 2) return;
-    setIsProcessing(true);
-    try {
-      const mergedPdf = await PDFDocument.create();
-      for (const file of files) {
-        try {
-          const buffer = await normalizeToPdf(file);
-          const pdf = await PDFDocument.load(buffer);
-          const copiedPages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-          copiedPages.forEach((page) => mergedPdf.addPage(page));
-        } catch (err) {
-          console.warn(`Could not process file ${file.name}`, err);
-        }
-      }
-      const bytes = await mergedPdf.save();
-      setMergedBytes(bytes);
-      const blob = new Blob([bytes.buffer], { type: 'application/pdf' });
-      setMergedPdfUrl(URL.createObjectURL(blob));
-    } catch (e) {
-      console.error("Merge failed", e);
-      alert(t('merge.fail'));
-    } finally {
-      setIsProcessing(false);
-    }
   };
 
   return (
@@ -103,15 +116,14 @@ export default function Merge() {
                 ))}
               </div>
             )}
-            
-            <button 
-              className="btn btn-primary" 
-              onClick={mergePdfs} 
-              disabled={files.length < 2 || isProcessing}
-              style={{ width: '100%', marginTop: '1.5rem' }}
-            >
-              {isProcessing ? t('common.processing') : t('merge.mergeAll')}
-            </button>
+
+            {isProcessing && (
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span className="spin" style={{ display: 'inline-block', width: 13, height: 13, border: '2px solid var(--border-color)', borderTopColor: 'var(--accent)', borderRadius: '50%' }} />
+                {t('common.processing')}
+              </p>
+            )}
+            {mergeError && <div style={{ marginTop: '1rem' }}><StatusBanner type="error" message={mergeError} /></div>}
           </div>
 
           <div className="card glass" style={{ borderStyle: 'dashed' }}>
@@ -124,8 +136,10 @@ export default function Merge() {
             <PdfPreviewer pdfBytes={mergedBytes} />
           ) : (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', flexDirection: 'column', gap: '1rem' }}>
-              <Eye size={48} opacity={0.2} />
-              <p>{files.length > 0 ? t('merge.ready') : t('merge.preview')}</p>
+              {isProcessing
+                ? <span className="spin" style={{ display: 'inline-block', width: 32, height: 32, border: '3px solid var(--border-color)', borderTopColor: 'var(--accent)', borderRadius: '50%' }} />
+                : <Eye size={48} opacity={0.2} />}
+              <p>{isProcessing ? t('common.processing') : t('merge.preview')}</p>
             </div>
           )}
           {mergedPdfUrl && (

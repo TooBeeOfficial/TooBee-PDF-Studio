@@ -1,14 +1,19 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer } from "electron";
 
 const api = {
   on(channel: string, listener: (...args: any[]) => void) {
-    const wrapped = (_event: any, ...args: any[]) => listener(...args);
-    ipcRenderer.on(channel, wrapped);
-    return () => ipcRenderer.removeListener(channel, wrapped);
-  },
+    const wrapped = (
+      _event: Electron.IpcRendererEvent,
+      ...args: any[]
+    ) => {
+      listener(...args);
+    };
 
-  off(channel: string, listener: (...args: any[]) => void) {
-    ipcRenderer.removeListener(channel, listener as any);
+    ipcRenderer.on(channel, wrapped);
+
+    return () => {
+      ipcRenderer.removeListener(channel, wrapped);
+    };
   },
 
   send(channel: string, ...args: any[]) {
@@ -17,7 +22,11 @@ const api = {
 
   invoke(channel: string, ...args: any[]) {
     return ipcRenderer.invoke(channel, ...args);
-  }
+  },
+
+  getVersion() {
+    return ipcRenderer.invoke("app:getVersion");
+  },
 };
 
-contextBridge.exposeInMainWorld('ipcRenderer', api);
+contextBridge.exposeInMainWorld("ipcRenderer", api);

@@ -2,13 +2,14 @@ import { useState, useRef, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import FileUploader from '../components/FileUploader';
+import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
 import PasswordInput from '../components/PasswordInput';
 import StatusBanner from '../components/StatusBanner';
 import ProgressBar from '../components/ProgressBar';
 import { Download, Unlock as UnlockIcon, ShieldAlert, ShieldCheck, FileUp, CheckCircle2 } from 'lucide-react';
-import { usePdf } from '../context/PdfContext';
+import { useToolStore } from '../store/useToolStore';
+import { toPdfFile } from '../utils/fileConverter';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -26,7 +27,8 @@ async function renderPageToJpeg(page: pdfjsLib.PDFPageProxy, scale = 2.0) {
 }
 
 export default function Unlock() {
-  const { file, pdfBytes, setActivePdf } = usePdf();
+  const { document: doc, setDocument } = useToolStore();
+  const { file, bytes: pdfBytes } = doc;
   const [password, setPassword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -53,14 +55,20 @@ export default function Unlock() {
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (!newFiles.length) return;
-    const f = newFiles[0];
+    let f: File;
+    try {
+      f = await toPdfFile(newFiles[0]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unsupported file type.');
+      return;
+    }
     const bytes = new Uint8Array(await f.arrayBuffer());
-    setActivePdf(f, bytes);
+    setDocument(f, bytes);
     resetOutput(); setPassword('');
   };
 
   const unlockPdf = async () => {
-    if (!pdfBytes || !password) return;
+    if (!pdfBytes || !password || !file) return;
     setIsProcessing(true); resetOutput();
     try {
       let pdfDoc: pdfjsLib.PDFDocumentProxy;
@@ -85,8 +93,11 @@ export default function Unlock() {
       const resultBytes = await newDoc.save();
       setUnlockedBytes(resultBytes);
       setUnlockedUrl(URL.createObjectURL(new Blob([resultBytes], { type: 'application/pdf' })));
-      setUnlockedName(`unlocked_${file!.name}`);
+      setUnlockedName(`unlocked_${file.name}`);
       setSuccess(true);
+      // The unlocked copy becomes the new working document, so other tools
+      // can continue on it directly instead of the still-encrypted original.
+      setDocument(new File([resultBytes], file.name, { type: 'application/pdf' }), resultBytes);
     } catch {
       setError('Failed to unlock PDF. The file may be unsupported or corrupted.');
     } finally {
@@ -100,7 +111,7 @@ export default function Unlock() {
         <div><h1>Unlock PDF</h1><p>Remove password protection and export an unrestricted copy.</p></div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           {file && <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}><FileUp size={18} /> Select New PDF</button>}
-          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }} style={{ display: 'none' }} accept=".pdf" />
+          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }} style={{ display: 'none' }} accept={ACCEPTED_FILE_EXT} />
         </div>
       </header>
 

@@ -1,15 +1,18 @@
 import { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import FileUploader from '../components/FileUploader';
+import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import PdfPreviewer from '../components/PdfPreviewer';
 import { Download, Scissors, Plus, Trash2, FileStack, FileUp, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { usePdf } from '../context/PdfContext';
+import { useToolStore } from '../store/useToolStore';
+import { toPdfFile } from '../utils/fileConverter';
 
 interface SplitRule { id: string; name: string; range: string; }
 interface SplitResult { name: string; url: string; }
 
 export default function Split() {
-  const { file, setActivePdf } = usePdf();
+  const { document: doc, setDocument } = useToolStore();
+  const { file, bytes: pdfBytes } = doc;
   const [numPages, setNumPages] = useState(0);
   const [rules, setRules] = useState<SplitRule[]>([{ id: '1', name: 'Split 1', range: '1' }]);
   const [results, setResults] = useState<SplitResult[]>([]);
@@ -18,9 +21,15 @@ export default function Split() {
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (!newFiles.length) return;
-    const f = newFiles[0];
+    let f: File;
+    try {
+      f = await toPdfFile(newFiles[0]);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Unsupported file type.');
+      return;
+    }
     const bytes = new Uint8Array(await f.arrayBuffer());
-    setActivePdf(f, bytes);
+    setDocument(f, bytes);
     setResults([]);
     const pdfDoc = await PDFDocument.load(bytes.slice(0));
     setNumPages(pdfDoc.getPageCount());
@@ -45,11 +54,10 @@ export default function Split() {
   };
 
   const executeSplits = async () => {
-    if (!file) return;
+    if (!pdfBytes) return;
     setIsProcessing(true);
     try {
-      const buffer = await file.arrayBuffer();
-      const pdfDoc = await PDFDocument.load(buffer);
+      const pdfDoc = await PDFDocument.load(pdfBytes.slice(0));
       const newResults: SplitResult[] = [];
       for (const rule of rules) {
         if (!rule.range.trim()) continue;
@@ -78,7 +86,7 @@ export default function Split() {
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
           {file && <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}><FileUp size={18} /> Select New PDF</button>}
-          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) { setResults([]); handleFilesSelected(Array.from(e.target.files)); } }} style={{ display: 'none' }} accept=".pdf" />
+          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) { setResults([]); handleFilesSelected(Array.from(e.target.files)); } }} style={{ display: 'none' }} accept={ACCEPTED_FILE_EXT} />
         </div>
       </header>
 
@@ -115,22 +123,26 @@ export default function Split() {
           )}
         </div>
 
-        <div style={{ flex: 1, backgroundColor: 'var(--bg-secondary)', borderRadius: '1rem', overflowY: 'auto', padding: '2rem', position: 'relative' }}>
+        <div style={{ flex: 1, backgroundColor: 'var(--bg-secondary)', borderRadius: '1rem', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column' }}>
           {results.length > 0 ? (
-            <div className="tool-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.5rem' }}>
-              {results.map((res, i) => (
-                <div key={i} className="card tool-card fade-in" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', backgroundColor: 'var(--bg-primary)', cursor: 'default' }}>
-                  <div className="tool-icon" style={{ width: '40px', height: '40px', backgroundColor: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}><FileStack size={20} /></div>
-                  <div>
-                    <h3 style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>{res.name}</h3>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Ready for download</p>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '2rem' }}>
+              <div className="tool-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.5rem' }}>
+                {results.map((res, i) => (
+                  <div key={i} className="card tool-card fade-in" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', backgroundColor: 'var(--bg-primary)', cursor: 'default' }}>
+                    <div className="tool-icon" style={{ width: '40px', height: '40px', backgroundColor: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}><FileStack size={20} /></div>
+                    <div>
+                      <h3 style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>{res.name}</h3>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Ready for download</p>
+                    </div>
+                    <button className="btn btn-primary" style={{ marginTop: 'auto' }} onClick={() => { const a = document.createElement('a'); a.href = res.url; a.download = `${res.name}.pdf`; a.click(); }}>
+                      <Download size={16} /> Download
+                    </button>
                   </div>
-                  <button className="btn btn-primary" style={{ marginTop: 'auto' }} onClick={() => { const a = document.createElement('a'); a.href = res.url; a.download = `${res.name}.pdf`; a.click(); }}>
-                    <Download size={16} /> Download
-                  </button>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
+          ) : pdfBytes ? (
+            <PdfPreviewer pdfBytes={pdfBytes} />
           ) : (
             <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', gap: '1rem' }}>
               {file ? <Scissors size={48} opacity={0.2} /> : <Eye size={48} opacity={0.2} />}

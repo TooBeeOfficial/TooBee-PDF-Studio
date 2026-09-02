@@ -67,8 +67,6 @@
     "desc": "Combina più file (PDF, Immagini, Office, Testo) in un singolo PDF coeso.",
     "queue": "CODA FILE",
     "empty": "Nessun file aggiunto ancora.",
-    "mergeAll": "Unisci Tutti i File",
-    "ready": "File pronti per essere uniti",
     "preview": "Aggiungi file per vedere l'anteprima",
     "downloadMerged": "Scarica PDF Unito",
     "fail": "Impossibile unire i file. Assicurati che siano validi."

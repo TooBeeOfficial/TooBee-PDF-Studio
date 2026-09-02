@@ -67,8 +67,6 @@
     "desc": "Combina varios archivos (PDF, Imágenes, Office, Texto) en un solo PDF coherente.",
     "queue": "COLA DE ARCHIVOS",
     "empty": "No hay archivos añadidos aún.",
-    "mergeAll": "Unir Todos los Archivos",
-    "ready": "Archivos listos para unir",
     "preview": "Añade archivos para ver la vista previa",
     "downloadMerged": "Descargar PDF Unido",
     "fail": "Error al unir los archivos. Asegúrate de que sean válidos."

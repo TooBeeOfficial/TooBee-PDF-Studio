@@ -67,8 +67,6 @@
     "desc": "将多个文件（PDF、图像、Office、文本）合并为一个 PDF。",
     "queue": "文件队列",
     "empty": "尚未添加文件。",
-    "mergeAll": "合并所有文件",
-    "ready": "文件已准备好合并",
     "preview": "添加文件以查看预览",
     "downloadMerged": "下载合并的 PDF",
     "fail": "无法合并文件。请确保它们有效。"

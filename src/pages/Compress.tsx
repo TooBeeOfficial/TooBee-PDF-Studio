@@ -1,13 +1,15 @@
 import { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import FileUploader from '../components/FileUploader';
+import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
 import { Download, Minimize2, Eye, Zap, RefreshCw, FileUp } from 'lucide-react';
-import { usePdf } from '../context/PdfContext';
+import { useToolStore } from '../store/useToolStore';
+import { toPdfFile } from '../utils/fileConverter';
 
 export default function Compress() {
-  const { file, pdfBytes: originalBytes, setActivePdf } = usePdf();
-  const [compressedBytes, setCompressedBytes] = useState<Uint8Array | null>(null);
+  const { document: doc, setDocument } = useToolStore();
+  const { file, bytes: pdfBytes } = doc;
+  const [originalSize, setOriginalSize] = useState(0);
   const [compressedUrl, setCompressedUrl] = useState<string | null>(null);
   const [compressedSize, setCompressedSize] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -16,19 +18,25 @@ export default function Compress() {
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (!newFiles.length) return;
-    const f = newFiles[0];
+    let f: File;
+    try {
+      f = await toPdfFile(newFiles[0]);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Unsupported file type.');
+      return;
+    }
     const bytes = new Uint8Array(await f.arrayBuffer());
-    setActivePdf(f, bytes);
+    setDocument(f, bytes);
+    setOriginalSize(f.size);
     setCompressedUrl(null);
-    setCompressedBytes(null);
     setCompressedSize(0);
   };
 
   const compressPdf = async () => {
-    if (!originalBytes) return;
+    if (!pdfBytes || !file) return;
     setIsProcessing(true);
     try {
-      const originalDoc = await PDFDocument.load(originalBytes.slice(0));
+      const originalDoc = await PDFDocument.load(pdfBytes.slice(0));
       let finalBytes: Uint8Array;
       if (mode === 'aggressive') {
         const compressedDoc = await PDFDocument.create();
@@ -38,10 +46,13 @@ export default function Compress() {
       } else {
         finalBytes = await originalDoc.save({ useObjectStreams: true });
       }
-      setCompressedBytes(finalBytes);
+      setOriginalSize(prev => prev || file.size);
       setCompressedSize(finalBytes.length);
       const blob = new Blob([finalBytes], { type: 'application/pdf' });
       setCompressedUrl(URL.createObjectURL(blob));
+      // The compressed result becomes the new working document, so other
+      // tools pick up the compressed version instead of the original.
+      setDocument(new File([finalBytes], file.name, { type: 'application/pdf' }), finalBytes);
     } catch (e) {
       console.error('Compression failed', e);
     } finally {
@@ -69,7 +80,7 @@ export default function Compress() {
               <FileUp size={18} /> Select New PDF
             </button>
           )}
-          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) { setCompressedBytes(null); setCompressedUrl(null); setCompressedSize(0); handleFilesSelected(Array.from(e.target.files)); } }} style={{ display: 'none' }} accept=".pdf" />
+          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }} style={{ display: 'none' }} accept={ACCEPTED_FILE_EXT} />
         </div>
       </header>
 
@@ -105,7 +116,7 @@ export default function Compress() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>Original:</span>
-                    <span>{formatSize(file.size)}</span>
+                    <span>{formatSize(originalSize || file.size)}</span>
                   </div>
                   {compressedSize > 0 && (
                     <>
@@ -113,7 +124,7 @@ export default function Compress() {
                         <span>Optimized:</span><span>{formatSize(compressedSize)}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '0.85rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
-                        <span>Saved:</span><span>{Math.round((1 - compressedSize / file.size) * 100)}%</span>
+                        <span>Saved:</span><span>{Math.round((1 - compressedSize / (originalSize || file.size)) * 100)}%</span>
                       </div>
                     </>
                   )}
@@ -124,8 +135,8 @@ export default function Compress() {
         </div>
 
         <div style={{ flex: 1, backgroundColor: 'var(--bg-secondary)', borderRadius: '1rem', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-          {(compressedBytes || originalBytes) ? (
-            <PdfPreviewer pdfBytes={compressedBytes || originalBytes} />
+          {pdfBytes ? (
+            <PdfPreviewer pdfBytes={pdfBytes} />
           ) : (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', flexDirection: 'column', gap: '1rem' }}>
               <Eye size={48} opacity={0.2} /><p>Select a PDF to see the preview</p>

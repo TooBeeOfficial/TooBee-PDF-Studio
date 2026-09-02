@@ -53,7 +53,7 @@
     "addMore": "Add More Files",
     "selectNew": "Select New File",
     "dropzoneTitle": "Drop your files here",
-    "dropzoneSubtitle": "Click to browse or drag and drop your files here. Supported formats: PDF, Images, Word, Excel, Text, HTML.",
+    "dropzoneSubtitle": "Click to browse or drag and drop your files here. Supported formats: PDF, Images, Word, Excel, Text, CSV, RTF, Markdown, HTML.",
     "secure": "100% Secure",
     "privacyFirst": "Privacy-First",
     "processing": "Processing...",
@@ -67,8 +67,6 @@
     "desc": "Combine multiple files (PDFs, Images, Office Docs, Text) into a single, cohesive PDF.",
     "queue": "FILE QUEUE",
     "empty": "No files added yet.",
-    "mergeAll": "Merge All Files",
-    "ready": "Files ready to merge",
     "preview": "Add files to see the preview",
     "downloadMerged": "Download Merged PDF",
     "fail": "Failed to merge files. Ensure they are valid."

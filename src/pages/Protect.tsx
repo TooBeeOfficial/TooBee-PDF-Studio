@@ -1,12 +1,13 @@
 import { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { encryptPDF } from '@pdfsmaller/pdf-encrypt-lite';
-import FileUploader from '../components/FileUploader';
+import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
 import PasswordInput from '../components/PasswordInput';
 import StatusBanner from '../components/StatusBanner';
 import { Download, Lock, ShieldCheck, Eye, FileUp, CheckCircle2 } from 'lucide-react';
-import { usePdf } from '../context/PdfContext';
+import { useToolStore } from '../store/useToolStore';
+import { toPdfFile } from '../utils/fileConverter';
 
 function getPasswordStrength(pw: string): { label: string; color: string; width: string } {
   if (!pw) return { label: '', color: 'transparent', width: '0%' };
@@ -18,7 +19,8 @@ function getPasswordStrength(pw: string): { label: string; color: string; width:
 }
 
 export default function Protect() {
-  const { file, pdfBytes, setActivePdf } = usePdf();
+  const { document: doc, setDocument } = useToolStore();
+  const { file, bytes: pdfBytes } = doc;
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -34,9 +36,15 @@ export default function Protect() {
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (!newFiles.length) return;
-    const f = newFiles[0];
+    let f: File;
+    try {
+      f = await toPdfFile(newFiles[0]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unsupported file type.');
+      return;
+    }
     const bytes = new Uint8Array(await f.arrayBuffer());
-    setActivePdf(f, bytes);
+    setDocument(f, bytes);
     setProtectedUrl(null); setError(null); setSuccess(false); setPassword(''); setConfirmPassword('');
   };
 
@@ -50,6 +58,9 @@ export default function Protect() {
       setProtectedUrl(url);
       setProtectedName(`protected_${file!.name}`);
       setSuccess(true);
+      // Deliberately NOT chained into the shared document: it's now encrypted,
+      // so other tools couldn't read it without a password. It stays a
+      // separate download; use Unlock first if you want to keep editing it.
     } catch {
       setError('Failed to protect PDF. The file may be corrupted or already encrypted.');
     } finally {
@@ -63,7 +74,7 @@ export default function Protect() {
         <div><h1>Protect PDF</h1><p>Add real password encryption to your documents — 128-bit RC4.</p></div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           {file && <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}><FileUp size={18} /> Select New PDF</button>}
-          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }} style={{ display: 'none' }} accept=".pdf" />
+          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }} style={{ display: 'none' }} accept={ACCEPTED_FILE_EXT} />
         </div>
       </header>
 

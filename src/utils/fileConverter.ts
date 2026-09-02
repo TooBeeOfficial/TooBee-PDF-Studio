@@ -3,6 +3,18 @@ import mammoth from 'mammoth';
 import * as xlsx from 'xlsx';
 import html2canvas from 'html2canvas';
 
+// Passes PDFs through unchanged; any other supported format (image, text, Office
+// doc, HTML, ...) is converted to PDF bytes and wrapped back into a File so every
+// PDF tool can accept it as if it were a native PDF.
+export async function toPdfFile(file: File): Promise<File> {
+  if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+    return file;
+  }
+  const bytes = await normalizeToPdf(file);
+  const name = file.name.replace(/\.[^./]+$/, '') + '.pdf';
+  return new File([bytes as BlobPart], name, { type: 'application/pdf' });
+}
+
 export async function normalizeToPdf(file: File): Promise<Uint8Array> {
   const type = file.type;
   const name = file.name.toLowerCase();
@@ -65,44 +77,32 @@ export async function normalizeToPdf(file: File): Promise<Uint8Array> {
     return await pdfDoc.save();
   }
 
-  // 4. Text (.txt)
-  if (type === 'text/plain' || name.endsWith('.txt')) {
+  // 4. Text (.txt, .md, .markdown, .log, .json)
+  if (type === 'text/plain' || /\.(txt|md|markdown|log|json)$/i.test(name)) {
     const text = await file.text();
-    const pdfDoc = await PDFDocument.create();
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const fontSize = 12;
-    
-    // A4 size
-    const pageWidth = 595.28;
-    const pageHeight = 841.89;
-    const margin = 50;
-    const maxWidth = pageWidth - margin * 2;
-    
-    const lines = text.split('\n');
-    let page = pdfDoc.addPage([pageWidth, pageHeight]);
-    let y = pageHeight - margin;
-
-    for (const line of lines) {
-      if (y < margin) {
-        page = pdfDoc.addPage([pageWidth, pageHeight]);
-        y = pageHeight - margin;
-      }
-      // Extremely basic text wrapping could be added here
-      // For now we just draw the line
-      page.drawText(line, { x: margin, y, size: fontSize, font, color: rgb(0,0,0) });
-      y -= fontSize * 1.5;
-    }
-    return await pdfDoc.save();
+    return await textToPdfBytes(text);
   }
 
-  // 5. Word (.docx) via mammoth -> HTML -> Canvas -> PDF
+  // 5. Rich Text Format (.rtf) - stripped down to plain text (no dependency for full RTF parsing)
+  if (type === 'text/rtf' || type === 'application/rtf' || name.endsWith('.rtf')) {
+    const raw = await file.text();
+    return await textToPdfBytes(stripRtf(raw));
+  }
+
+  // 6. CSV (.csv) rendered as a simple table
+  if (type === 'text/csv' || name.endsWith('.csv')) {
+    const text = await file.text();
+    return await htmlToPdfBytes(csvToHtmlTable(text), name);
+  }
+
+  // 7. Word (.docx) via mammoth -> HTML -> Canvas -> PDF
   if (name.endsWith('.docx')) {
     const arrayBuffer = await file.arrayBuffer();
     const result = await mammoth.convertToHtml({ arrayBuffer });
     return await htmlToPdfBytes(result.value, name);
   }
 
-  // 6. Excel (.xlsx, .xls) via xlsx -> HTML -> Canvas -> PDF
+  // 8. Excel (.xlsx, .xls) via xlsx -> HTML -> Canvas -> PDF
   if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
     const arrayBuffer = await file.arrayBuffer();
     const workbook = xlsx.read(arrayBuffer, { type: 'array' });
@@ -112,13 +112,87 @@ export async function normalizeToPdf(file: File): Promise<Uint8Array> {
     return await htmlToPdfBytes(html, name);
   }
 
-  // 7. HTML
+  // 9. HTML
   if (name.endsWith('.html') || name.endsWith('.htm')) {
     const html = await file.text();
     return await htmlToPdfBytes(html, name);
   }
 
   throw new Error(`Unsupported file type: ${type} (${name})`);
+}
+
+// Renders plain text into a paginated A4 PDF with word wrapping.
+async function textToPdfBytes(text: string): Promise<Uint8Array> {
+  const pdfDoc = await PDFDocument.create();
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontSize = 11;
+
+  // A4 size
+  const pageWidth = 595.28;
+  const pageHeight = 841.89;
+  const margin = 50;
+  const maxWidth = pageWidth - margin * 2;
+  const lineHeight = fontSize * 1.4;
+
+  const wrapLine = (line: string): string[] => {
+    if (!line) return [''];
+    const words = line.split(' ');
+    const wrapped: string[] = [];
+    let current = '';
+    for (const word of words) {
+      const attempt = current ? `${current} ${word}` : word;
+      if (current && font.widthOfTextAtSize(attempt, fontSize) > maxWidth) {
+        wrapped.push(current);
+        current = word;
+      } else {
+        current = attempt;
+      }
+    }
+    wrapped.push(current);
+    return wrapped;
+  };
+
+  const allLines = text.split('\n').flatMap(wrapLine);
+
+  let page = pdfDoc.addPage([pageWidth, pageHeight]);
+  let y = pageHeight - margin;
+
+  for (const line of allLines) {
+    if (y < margin) {
+      page = pdfDoc.addPage([pageWidth, pageHeight]);
+      y = pageHeight - margin;
+    }
+    page.drawText(line, { x: margin, y, size: fontSize, font, color: rgb(0, 0, 0) });
+    y -= lineHeight;
+  }
+
+  return await pdfDoc.save();
+}
+
+// Best-effort RTF -> plain text conversion by stripping control words/groups.
+function stripRtf(rtf: string): string {
+  return rtf
+    .replace(/\\par[d]?/g, '\n')
+    .replace(/\\tab/g, '\t')
+    .replace(/\{\*?\\[^{}]+\}/g, '')
+    .replace(/[{}]/g, '')
+    .replace(/\\[A-Za-z]+-?\d* ?/g, '')
+    .replace(/\\'[0-9a-fA-F]{2}/g, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .trim();
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Minimal CSV parser (no quoted-comma support) rendered as an HTML table.
+function csvToHtmlTable(csv: string): string {
+  const rows = csv.split(/\r?\n/).filter(r => r.length > 0).map(row => row.split(','));
+  const body = rows.map(cols =>
+    `<tr>${cols.map(c => `<td style="border:1px solid #ccc;padding:4px 8px;">${escapeHtml(c)}</td>`).join('')}</tr>`
+  ).join('');
+  return `<table style="border-collapse:collapse;width:100%;font-size:12px;">${body}</table>`;
 }
 
 // Helper to convert HTML string to PDF

@@ -2,7 +2,9 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import FileUploader from '../components/FileUploader';
+import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import { toPdfFile } from '../utils/fileConverter';
+import { useToolStore } from '../store/useToolStore';
 import { Download, PenTool, Trash2, Save, FileUp, ZoomIn, ZoomOut, Search, Plus, Palette } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -32,8 +34,8 @@ interface Signature {
 }
 
 export default function Sign() {
-  const [file, setFile] = useState<File | null>(null);
-  const [currentPdfBytes, setCurrentPdfBytes] = useState<Uint8Array | null>(null);
+  const { document: sharedDoc, setDocument } = useToolStore();
+  const { file, bytes: currentPdfBytes } = sharedDoc;
   const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [signatures, setSignatures] = useState<Signature[]>([]);
@@ -55,6 +57,7 @@ export default function Sign() {
 
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   const bufferCanvasRef = useRef<HTMLCanvasElement>(null);
+  const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const allFontFamilies = useMemo(() => {
@@ -88,8 +91,15 @@ export default function Sign() {
         buffer.height = viewport.height;
         buffer.style.width = `${viewport.width / dpi}px`;
         buffer.style.height = `${viewport.height / dpi}px`;
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        
+
+        // pdf.js throws if a second render starts on the same canvas before the
+        // first finishes, so cancel any in-flight render before starting a new one.
+        renderTaskRef.current?.cancel();
+        const task = page.render({ canvasContext: ctx, viewport });
+        renderTaskRef.current = task;
+        await task.promise;
+        if (renderTaskRef.current === task) renderTaskRef.current = null;
+
         const main = mainCanvasRef.current;
         if (main) {
           main.width = buffer.width;
@@ -99,23 +109,25 @@ export default function Sign() {
           main.getContext('2d')?.drawImage(buffer, 0, 0);
         }
       }
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      if (e?.name !== 'RenderingCancelledException') console.error(e);
     }
   }, [currentPdfBytes]);
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (newFiles.length === 0) return;
-    const selectedFile = newFiles[0];
-    setFile(selectedFile);
+    let selectedFile: File;
+    try {
+      selectedFile = await toPdfFile(newFiles[0]);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Unsupported file type.');
+      return;
+    }
     const buffer = await selectedFile.arrayBuffer();
     const uint8Array = new Uint8Array(buffer);
-    setCurrentPdfBytes(uint8Array);
-    const blob = new Blob([uint8Array], { type: 'application/pdf' });
-    setCurrentPdfUrl(URL.createObjectURL(blob));
-    const pdf = await pdfjsLib.getDocument({ data: uint8Array.slice(0) }).promise;
-    setNumPages(pdf.numPages);
-    performRender(1, visualScale);
+    setDocument(selectedFile, uint8Array);
+    // The effect below re-renders once currentPdfBytes lands; calling performRender
+    // here too (with a stale closure) would race it on the same canvas.
   };
 
   const handleFontUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -196,16 +208,38 @@ export default function Sign() {
         page.drawText(sig.text, { x: px, y: py - 15, size: 24, font, color: rgb(r, g, b) });
       }
       const newBytes = await pdfDoc.save();
-      setCurrentPdfBytes(newBytes);
-      setCurrentPdfUrl(URL.createObjectURL(new Blob([newBytes.buffer], { type: 'application/pdf' })));
       setSignatures([]);
-      performRender(currentPage, visualScale);
+      // The signed result becomes the new working document, so other tools
+      // pick up these signatures instead of the pre-sign file. The effect
+      // below re-renders once it lands; calling performRender here too would
+      // race it on the same canvas.
+      setDocument(new File([newBytes], file?.name || 'signed.pdf', { type: 'application/pdf' }), newBytes);
     } catch (e) {
       console.error(e);
     } finally {
       setIsProcessing(false);
     }
   };
+
+  // Keep the download link in sync with the shared document, however it got
+  // there — signed here, or edited by another tool and carried over.
+  useEffect(() => {
+    if (!currentPdfBytes) { setCurrentPdfUrl(null); return; }
+    const url = URL.createObjectURL(new Blob([currentPdfBytes], { type: 'application/pdf' }));
+    setCurrentPdfUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [currentPdfBytes]);
+
+  // numPages isn't tracked by performRender, so recompute it whenever the
+  // document changes (freshly loaded here, or carried over from another tool).
+  useEffect(() => {
+    if (!currentPdfBytes) { setNumPages(0); return; }
+    let cancelled = false;
+    pdfjsLib.getDocument({ data: currentPdfBytes.slice(0) }).promise.then(pdf => {
+      if (!cancelled) setNumPages(pdf.numPages);
+    });
+    return () => { cancelled = true; };
+  }, [currentPdfBytes]);
 
   useEffect(() => {
     if (currentPdfBytes) performRender(currentPage, visualScale);
@@ -237,8 +271,8 @@ export default function Sign() {
                 handleFilesSelected(Array.from(e.target.files));
               }
             }} 
-            style={{ display: 'none' }} 
-            accept=".pdf"
+            style={{ display: 'none' }}
+            accept={ACCEPTED_FILE_EXT}
           />
           {signatures.length > 0 && <button className="btn btn-primary" onClick={applySignatures} disabled={isProcessing}><Save size={18} /> Finalize</button>}
           {currentPdfBytes && <button className="btn btn-secondary" onClick={() => { const a = document.createElement('a'); a.href = currentPdfUrl!; a.download = 'signed.pdf'; a.click(); }}><Download size={18} /> Download</button>}

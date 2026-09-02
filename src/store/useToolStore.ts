@@ -1,35 +1,27 @@
 import { create } from 'zustand';
 
+interface DocumentSlice {
+  file: File | null;
+  bytes: Uint8Array | null;
+}
+
 interface ToolState {
   mergeFiles: File[];
   setMergeFiles: (files: File[]) => void;
-  
-  splitFile: File | null;
-  setSplitFile: (file: File | null) => void;
-  
-  compressFile: File | null;
-  setCompressFile: (file: File | null) => void;
 
-  convertFile: File | null;
-  setConvertFile: (file: File | null) => void;
-
-  rotateFile: File | null;
-  setRotateFile: (file: File | null) => void;
+  // The single "working document" shared by every tool. Loading a file in any
+  // tool sets this; an operation that produces a new version of that same
+  // document (rotate, compress, unlock, extract, burn edits, sign, merge)
+  // writes its result back here too, so switching tools shows the latest
+  // edit instead of the original file, even if it was never downloaded/saved.
+  document: DocumentSlice;
+  setDocument: (file: File | null, bytes: Uint8Array | null) => void;
 }
 
 export const useToolStore = create<ToolState>((set) => ({
   mergeFiles: [],
   setMergeFiles: (files) => set({ mergeFiles: files }),
-  
-  splitFile: null,
-  setSplitFile: (file) => set({ splitFile: file }),
-  
-  compressFile: null,
-  setCompressFile: (file) => set({ compressFile: file }),
 
-  convertFile: null,
-  setConvertFile: (file) => set({ convertFile: file }),
-
-  rotateFile: null,
-  setRotateFile: (file) => set({ rotateFile: file }),
+  document: { file: null, bytes: null },
+  setDocument: (file, bytes) => set({ document: { file, bytes } }),
 }));

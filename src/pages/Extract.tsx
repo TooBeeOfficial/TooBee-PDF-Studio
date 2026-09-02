@@ -1,30 +1,37 @@
 import { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import FileUploader from '../components/FileUploader';
+import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
 import { Download, FileOutput, Eye, FileUp } from 'lucide-react';
-import { usePdf } from '../context/PdfContext';
+import { useToolStore } from '../store/useToolStore';
+import { toPdfFile } from '../utils/fileConverter';
 
 export default function Extract() {
-  const { file, pdfBytes: sourceBytes, setActivePdf } = usePdf();
+  const { document: doc, setDocument } = useToolStore();
+  const { file, bytes: sourceBytes } = doc;
   const [pages, setPages] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedUrl, setExtractedUrl] = useState<string | null>(null);
-  const [extractedBytes, setExtractedBytes] = useState<Uint8Array | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (!newFiles.length) return;
-    const f = newFiles[0];
+    let f: File;
+    try {
+      f = await toPdfFile(newFiles[0]);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Unsupported file type.');
+      return;
+    }
     const bytes = new Uint8Array(await f.arrayBuffer());
-    setActivePdf(f, bytes);
+    setDocument(f, bytes);
     setExtractedUrl(null);
-    setExtractedBytes(null);
     setPages('');
   };
 
   const extractPages = async () => {
-    if (!sourceBytes || !pages) return;
+    if (!sourceBytes || !pages || !file) return;
     setIsProcessing(true);
     try {
       const pdfDoc = await PDFDocument.load(sourceBytes.slice(0));
@@ -34,8 +41,10 @@ export default function Extract() {
       const copiedPages = await newPdf.copyPages(pdfDoc, pageIndices);
       copiedPages.forEach(page => newPdf.addPage(page));
       const bytes = await newPdf.save();
-      setExtractedBytes(bytes);
       setExtractedUrl(URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })));
+      // The extracted subset becomes the new working document, so other
+      // tools continue from these pages instead of the full original.
+      setDocument(new File([bytes], file.name, { type: 'application/pdf' }), bytes);
     } catch {
       alert('Error extracting pages. Check your page numbers (e.g. 1, 3, 5)');
     } finally {
@@ -52,7 +61,7 @@ export default function Extract() {
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           {file && <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}><FileUp size={18} /> Select New PDF</button>}
-          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) { setExtractedBytes(null); setExtractedUrl(null); handleFilesSelected(Array.from(e.target.files)); } }} style={{ display: 'none' }} accept=".pdf" />
+          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }} style={{ display: 'none' }} accept={ACCEPTED_FILE_EXT} />
         </div>
       </header>
 
@@ -75,8 +84,8 @@ export default function Extract() {
         </div>
 
         <div style={{ flex: 1, backgroundColor: 'var(--bg-secondary)', borderRadius: '1rem', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-          {(extractedBytes || sourceBytes) ? (
-            <PdfPreviewer pdfBytes={extractedBytes || sourceBytes} />
+          {sourceBytes ? (
+            <PdfPreviewer pdfBytes={sourceBytes} />
           ) : (
             <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', flexDirection: 'column', gap: '1rem' }}>
               <Eye size={48} opacity={0.2} /><p>Select a PDF to see the preview</p>

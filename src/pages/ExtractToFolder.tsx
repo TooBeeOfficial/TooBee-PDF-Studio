@@ -1,19 +1,21 @@
 import { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import JSZip from 'jszip';
-import FileUploader from '../components/FileUploader';
+import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
 import StatusBanner from '../components/StatusBanner';
 import ProgressBar from '../components/ProgressBar';
 import { Download, FolderDown, FileUp, Eye, FileText, Layers } from 'lucide-react';
-import { usePdf } from '../context/PdfContext';
+import { useToolStore } from '../store/useToolStore';
+import { toPdfFile } from '../utils/fileConverter';
 
 function zeroPad(n: number, total: number) {
   return String(n).padStart(Math.max(String(total).length, 3), '0');
 }
 
 export default function ExtractToFolder() {
-  const { file, pdfBytes, setActivePdf } = usePdf();
+  const { document: doc, setDocument } = useToolStore();
+  const { file, bytes: pdfBytes } = doc;
   const [totalPages, setTotalPages] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -29,13 +31,19 @@ export default function ExtractToFolder() {
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (!newFiles.length) return;
-    const f = newFiles[0];
+    let f: File;
+    try {
+      f = await toPdfFile(newFiles[0]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unsupported file type.');
+      return;
+    }
     const bytes = new Uint8Array(await f.arrayBuffer());
-    setActivePdf(f, bytes);
+    setDocument(f, bytes);
     resetOutput();
     try {
-      const doc = await PDFDocument.load(bytes.slice(0));
-      setTotalPages(doc.getPageCount());
+      const pdfDoc = await PDFDocument.load(bytes.slice(0));
+      setTotalPages(pdfDoc.getPageCount());
     } catch {
       setError('Could not read this PDF. It may be encrypted or corrupted.');
     }
@@ -78,7 +86,7 @@ export default function ExtractToFolder() {
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           {file && <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}><FileUp size={18} /> Select New PDF</button>}
-          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }} style={{ display: 'none' }} accept=".pdf" />
+          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }} style={{ display: 'none' }} accept={ACCEPTED_FILE_EXT} />
         </div>
       </header>
 

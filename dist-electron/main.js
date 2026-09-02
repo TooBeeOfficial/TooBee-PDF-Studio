@@ -1,90 +1,85 @@
-import { app as l, BrowserWindow as f, ipcMain as d } from "electron";
-import { fileURLToPath as g } from "node:url";
-import r from "node:path";
+import { app as o, BrowserWindow as b, ipcMain as d } from "electron";
+import a from "node:path";
+import { fileURLToPath as y } from "node:url";
 import p from "node:fs";
-const u = r.dirname(g(import.meta.url));
-process.env.APP_ROOT = r.join(u, "..");
-const c = process.env.VITE_DEV_SERVER_URL, I = r.join(process.env.APP_ROOT, "dist-electron"), h = r.join(process.env.APP_ROOT, "dist-renderer");
-process.env.VITE_PUBLIC = c ? r.join(process.env.APP_ROOT, "public") : h;
-const v = r.join(process.env.APP_ROOT, "build", "icon.ico");
-let e = null, i = [], a = !1;
-const w = l.requestSingleInstanceLock();
-w || (l.quit(), process.exit(0));
-l.on("second-instance", (o, t) => {
-  e && (e.isMinimized() && e.restore(), e.focus(), R(t));
+const _ = y(import.meta.url), f = a.dirname(_), S = a.join(f, "..", "build", "icon.ico"), T = a.join(o.getPath("userData"), "open-files-debug.log");
+function r(...e) {
+  const t = `[${(/* @__PURE__ */ new Date()).toISOString()}] ${e.map((i) => typeof i == "string" ? i : JSON.stringify(i)).join(" ")}
+`;
+  try {
+    p.appendFileSync(T, t);
+  } catch {
+  }
+}
+let n = null, u = null;
+const v = o.requestSingleInstanceLock();
+v || (o.quit(), process.exit(0));
+o.on("second-instance", (e, t) => {
+  r("second-instance fired, argv =", t, "win exists =", !!n), n && (n.isMinimized() && n.restore(), n.focus(), w(t));
 });
-l.on("window-all-closed", () => {
-  process.platform !== "darwin" && (l.quit(), e = null);
-});
-l.on("activate", () => {
-  f.getAllWindows().length === 0 && m();
-});
-l.whenReady().then(() => {
-  m(), d.handle("read-file", async (o, t) => {
-    const n = await p.promises.readFile(t);
-    return {
-      name: r.basename(t),
-      buffer: n,
-      path: t
-    };
-  }), d.handle("renderer-ready", () => {
-    var o, t;
-    return a = !0, i.length > 0 && e && (e.webContents.send("open-files", {
-      files: i.map((n) => n.path).filter((n) => n !== ""),
-      action: ((o = i.find((n) => n.action)) == null ? void 0 : o.action) || null,
-      argv: ((t = i.find((n) => n.argv)) == null ? void 0 : t.argv) || []
-    }), i = []), !0;
-  }), R(process.argv);
-});
-function m() {
-  e = new f({
+function h() {
+  n = new b({
     width: 1400,
     height: 900,
     minWidth: 1e3,
     minHeight: 700,
     title: "TooBee PDF Studio",
-    icon: v,
+    icon: S,
     webPreferences: {
-      preload: r.join(u, "preload.mjs"),
+      preload: a.join(f, "preload.cjs"),
       contextIsolation: !0,
       nodeIntegration: !1
     }
-  }), e.setMenuBarVisibility(!1), e.autoHideMenuBar = !0, c ? e.loadURL(c) : e.loadFile(r.join(h, "index.html")), e.webContents.once("did-finish-load", () => {
-    var o, t;
-    i.length && a && (e == null || e.webContents.send("open-files", {
-      files: i.map((n) => n.path).filter((n) => n !== ""),
-      action: ((o = i.find((n) => n.action)) == null ? void 0 : o.action) || null,
-      argv: ((t = i.find((n) => n.argv)) == null ? void 0 : t.argv) || []
-    }), i = []);
+  }), n.setMenuBarVisibility(!1), n.autoHideMenuBar = !0;
+  const e = process.env.VITE_DEV_SERVER_URL;
+  e ? (n.loadURL(e), n.webContents.openDevTools()) : n.loadFile(a.join(f, "../dist-renderer/index.html")), n.on("closed", () => {
+    n = null;
   });
 }
-function R(o) {
+o.whenReady().then(() => {
+  r("app ready, gotTheLock =", v, "process.argv =", process.argv), h(), o.on("activate", () => {
+    b.getAllWindows().length === 0 && h();
+  }), d.handle("read-file", async (e, t) => {
+    const i = await p.promises.readFile(t);
+    return {
+      name: a.basename(t),
+      buffer: i,
+      path: t
+    };
+  }), d.handle("get-pending-files", () => {
+    const e = u;
+    return r("get-pending-files invoked by renderer, returning", e), u = null, e;
+  }), d.handle("app:getVersion", () => o.getVersion()), w(process.argv);
+});
+o.on("window-all-closed", () => {
+  process.platform !== "darwin" && o.quit();
+});
+let l = [], g = null, c = null;
+const m = 400;
+function w(e) {
   let t = null;
-  const n = [];
-  for (const s of o) {
+  const i = [];
+  for (const s of e.slice(1)) {
     if (s.split("=")[0] === "--action") {
       t = s.split("=")[1] ?? null;
       continue;
     }
     if (!s.startsWith("--"))
       try {
-        p.existsSync(s) && n.push(s);
+        p.existsSync(s) && i.push(s);
       } catch {
       }
   }
-  if (!n.length) {
-    a && (e != null && e.webContents) ? e.webContents.send("open-files", { files: [], action: null, argv: o }) : i.push({ path: "", action: null, argv: o });
+  if (r("handleArgv parsed", { argv: e, action: t, files: i }), !i.length) {
+    r("handleArgv: no real files found in argv, ignoring.");
     return;
   }
-  const _ = n.map((s) => ({ path: s, action: t, argv: o }));
-  i.push(..._), a && (e != null && e.webContents) && (e.webContents.send("open-files", {
-    files: n,
-    action: t,
-    argv: o
-  }), i = i.filter((s) => !n.includes(s.path)));
+  for (const s of i)
+    l.includes(s) || l.push(s);
+  t && (g = t), c && clearTimeout(c), c = setTimeout(L, m), r("queued into batch, now holding", l.length, "file(s); flushing in", m, "ms unless more arrive");
 }
-export {
-  I as MAIN_DIST,
-  h as RENDERER_DIST,
-  c as VITE_DEV_SERVER_URL
-};
+function L() {
+  if (c = null, !l.length) return;
+  const e = { files: l, action: g, argv: process.argv };
+  l = [], g = null, n == null || n.webContents.send("open-files", e), r("flushed batch to renderer (best-effort) and queued as pendingFiles:", e), u = e;
+}
