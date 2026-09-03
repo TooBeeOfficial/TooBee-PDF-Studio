@@ -125,7 +125,9 @@
     "strengthWeak": "弱",
     "strengthMedium": "中",
     "strengthStrong": "强",
-    "errUnsupported": "不支持该文件类型。"
+    "errUnsupported": "不支持该文件类型。",
+    "pwBytes": "已使用 {{used}} / {{max}} 字节",
+    "pwTruncated": "已缩短至 PDF 密码允许的 {{max}} 字节上限。"
   },
   "perf": {
     "hint": "此电脑在轻量模式下可能运行得更好。",

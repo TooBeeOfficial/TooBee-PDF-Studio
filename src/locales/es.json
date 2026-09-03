@@ -125,7 +125,9 @@
     "strengthWeak": "Débil",
     "strengthMedium": "Media",
     "strengthStrong": "Fuerte",
-    "errUnsupported": "Ese tipo de archivo no es compatible."
+    "errUnsupported": "Ese tipo de archivo no es compatible.",
+    "pwBytes": "{{used}} de {{max}} bytes usados",
+    "pwTruncated": "Se ha acortado al límite de {{max}} bytes que permiten las contraseñas PDF."
   },
   "perf": {
     "hint": "Este equipo puede funcionar mejor en modo Ligero.",

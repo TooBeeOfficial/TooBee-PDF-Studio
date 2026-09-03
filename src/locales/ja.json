@@ -125,7 +125,9 @@
     "strengthWeak": "弱い",
     "strengthMedium": "普通",
     "strengthStrong": "強い",
-    "errUnsupported": "このファイル形式には対応していません。"
+    "errUnsupported": "このファイル形式には対応していません。",
+    "pwBytes": "{{max}} バイト中 {{used}} バイト使用",
+    "pwTruncated": "PDF のパスワードで使用できる {{max}} バイトの上限に合わせて短縮されました。"
   },
   "perf": {
     "hint": "このパソコンは軽量モードの方が快適に動作する可能性があります。",

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import { encryptPDF } from '@pdfsmaller/pdf-encrypt';
+import { encryptPDF, saslPrep } from '@pdfsmaller/pdf-encrypt';
 import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
 import EmptyStage from '../components/EmptyStage';
@@ -11,6 +11,50 @@ import { useToolStore } from '../store/useToolStore';
 import { appendPdf } from '../utils/appendPdf';
 import { toPdfFile } from '../utils/fileConverter';
 import { useTranslation } from 'react-i18next';
+
+/**
+ * ISO 32000-2 truncates an AES-256 password to 127 bytes, and does it silently:
+ * two passwords sharing their first 127 bytes open the same file. Cap the field
+ * instead, so what is typed is what actually protects the document.
+ */
+const MAX_PASSWORD_BYTES = 127;
+
+const utf8 = new TextEncoder();
+
+/**
+ * Length of what the encryption library will really encode. SASLprep runs NFKC
+ * first, which can change the size a lot in either direction — "㍿" is 3 bytes
+ * on its own and 12 once normalised to "株式会社" — so counting the raw string
+ * would badly undercount.
+ */
+function passwordByteLength(pw: string): number {
+  try {
+    return utf8.encode(saslPrep(pw)).length;
+  } catch {
+    // Prohibited or bidirectional text: saslPrep refuses to normalise it. The
+    // encrypt call reports that properly, so here just fall back to raw bytes.
+    return utf8.encode(pw).length;
+  }
+}
+
+/** Grapheme clusters, so trimming never splits an emoji or a combining mark. */
+function graphemes(pw: string): string[] {
+  if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
+    return Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(pw), g => g.segment);
+  }
+  return Array.from(pw); // code points — still never splits a surrogate pair
+}
+
+/** Longest leading run of `pw` that fits the byte cap. */
+function clampPassword(pw: string): string {
+  if (passwordByteLength(pw) <= MAX_PASSWORD_BYTES) return pw;
+  let out = '';
+  for (const g of graphemes(pw)) {
+    if (passwordByteLength(out + g) > MAX_PASSWORD_BYTES) break;
+    out += g;
+  }
+  return out;
+}
 
 // The encryption library reports why a password or file was rejected via a
 // stable `code`, but its own message text is English only. Map each code to a
@@ -45,9 +89,12 @@ export default function Protect() {
   const [protectedName, setProtectedName] = useState('protected.pdf');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [truncated, setTruncated] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const strength = getPasswordStrength(password);
+  const passwordBytes = passwordByteLength(password);
+  const nearLimit = passwordBytes >= MAX_PASSWORD_BYTES * 0.75;
   const passwordsMatch = !!(password && confirmPassword && password === confirmPassword);
   const passwordMismatch = !!(confirmPassword && password !== confirmPassword);
 
@@ -150,7 +197,11 @@ export default function Protect() {
                     label={t('protect.newPassword')}
                     value={password}
                     placeholder={t('protect.newPasswordPlaceholder')}
-                    onChange={v => { setPassword(v); setSuccess(false); setProtectedUrl(null); }}
+                    onChange={v => {
+                      const clamped = clampPassword(v);
+                      setTruncated(clamped !== v);
+                      setPassword(clamped); setSuccess(false); setProtectedUrl(null);
+                    }}
                   />
 
                   {password && (
@@ -167,12 +218,27 @@ export default function Protect() {
                     </div>
                   )}
 
+                  {nearLimit && (
+                    <span className="hint">
+                      {t('protect.pwBytes', { used: passwordBytes, max: MAX_PASSWORD_BYTES })}
+                    </span>
+                  )}
+                  {truncated && (
+                    <span className="error-text">
+                      {t('protect.pwTruncated', { max: MAX_PASSWORD_BYTES })}
+                    </span>
+                  )}
+
                   <PasswordInput
                     label={t('protect.confirmPassword')}
                     value={confirmPassword}
                     placeholder={t('protect.confirmPasswordPlaceholder')}
                     borderColor={passwordMismatch ? 'var(--danger)' : passwordsMatch ? 'var(--ok)' : undefined}
-                    onChange={v => { setConfirmPassword(v); setSuccess(false); setProtectedUrl(null); }}
+                    onChange={v => {
+                      const clamped = clampPassword(v);
+                      setTruncated(clamped !== v);
+                      setConfirmPassword(clamped); setSuccess(false); setProtectedUrl(null);
+                    }}
                   />
 
                   {passwordMismatch && (

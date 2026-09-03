@@ -125,7 +125,9 @@
     "strengthWeak": "Weak",
     "strengthMedium": "Medium",
     "strengthStrong": "Strong",
-    "errUnsupported": "That file type is not supported."
+    "errUnsupported": "That file type is not supported.",
+    "pwBytes": "{{used}} of {{max}} bytes used",
+    "pwTruncated": "Shortened to the {{max}}-byte limit that PDF passwords allow."
   },
   "perf": {
     "hint": "This machine may run better in Light mode.",

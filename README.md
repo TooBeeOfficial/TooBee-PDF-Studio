@@ -38,11 +38,13 @@ the `AESV3` crypt filter, not the dated RC4 the format shipped for years. Passwo
 through SASLprep (RFC 4013), so the full Unicode range works: accented, CJK and emoji
 passwords all produce files any conforming reader will open.
 
-One caveat inherited from the format: ISO 32000-2 truncates AES-256 passwords to **127
-bytes**, so anything past that is silently ignored. That is bytes, not characters — a
-CJK character costs 3 and an emoji 4, so a passphrase of roughly 42 CJK characters
-already reaches the limit. Two long passwords sharing their first 127 bytes will open
-the same file.
+One limit is inherited from the format: ISO 32000-2 caps AES-256 passwords at **127
+bytes** and truncates anything longer *silently*, which would mean two passwords sharing
+their first 127 bytes open the same file. Rather than let that happen, the Protect field
+enforces the cap as you type and says so when it trims. The budget is bytes rather than
+characters, counted after SASLprep normalisation: an ASCII character costs 1, a CJK
+character 3, an emoji 4, and `㍿` expands to 12. Roughly 42 CJK characters or 127 ASCII
+ones reach the limit.
 
 ### Conversion
 

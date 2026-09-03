@@ -125,7 +125,9 @@
     "strengthWeak": "Zayıf",
     "strengthMedium": "Orta",
     "strengthStrong": "Güçlü",
-    "errUnsupported": "Bu dosya türü desteklenmiyor."
+    "errUnsupported": "Bu dosya türü desteklenmiyor.",
+    "pwBytes": "{{max}} baytın {{used}} baytı kullanıldı",
+    "pwTruncated": "PDF parolaları için izin verilen {{max}} baytlık sınıra göre kısaltıldı."
   },
   "perf": {
     "hint": "Bu bilgisayar Hafif modda daha iyi çalışabilir.",
