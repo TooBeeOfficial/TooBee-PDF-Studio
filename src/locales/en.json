@@ -39,7 +39,11 @@
       "extractFolderDesc": "Split every page into its own PDF and download as a ZIP.",
       "protectDesc": "Encrypt your document with a 128-bit RC4 password.",
       "unlockDesc": "Remove password protection and export freely."
-    }
+    },
+    "headline": "Every PDF tool, on this machine.",
+    "mastheadSub": "Nothing is uploaded and nothing leaves the machine. Pick a tool to start.",
+    "emptyOpen": "Drop a PDF here",
+    "emptyOpenSub": "or click to browse"
   },
   "settings": {
     "title": "Settings",
@@ -47,7 +51,29 @@
     "theme": "Theme",
     "darkMode": "Dark Mode",
     "lightMode": "Light Mode",
-    "close": "Close"
+    "close": "Close",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "performance": "Performance",
+    "perfFull": "Full",
+    "perfLight": "Light",
+    "perfMinimal": "Minimal",
+    "perfFullHint": "Everything on. Best on a modern machine.",
+    "perfLightHint": "Renders fewer page thumbnails up front.",
+    "perfMinimalHint": "No animations at all. For older, slower computers.",
+    "shortcuts": "Keyboard shortcuts",
+    "scTools": "Jump to a tool",
+    "scDashboard": "Dashboard",
+    "scSettings": "Settings",
+    "scTheme": "Switch light / dark",
+    "shortcutsPreview": "In a preview",
+    "scZoom": "Zoom",
+    "scZoomReset": "Reset zoom",
+    "scPage": "Previous / next page",
+    "scNudge": "Nudge selection",
+    "scDeleteSel": "Delete selection",
+    "scWheel": "wheel"
   },
   "common": {
     "addMore": "Add More Files",
@@ -70,5 +96,15 @@
     "preview": "Add files to see the preview",
     "downloadMerged": "Download Merged PDF",
     "fail": "Failed to merge files. Ensure they are valid."
+  },
+  "perf": {
+    "hint": "This machine may run better in Light mode.",
+    "switchToLight": "Switch to Light",
+    "keepFull": "Keep Full",
+    "dismiss": "Dismiss"
+  },
+  "ledger": {
+    "title": "Working document",
+    "close": "Close document"
   }
 }

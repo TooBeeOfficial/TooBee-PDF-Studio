@@ -1,15 +1,33 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark" data-perf="full">
 
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/bee-logo.svg" />
+  <link rel="icon" type="image/svg+xml" href="./bee-logo.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TooBee PDF Studio</title>
-  <!-- Preload fonts if needed -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!--
+    Theme and performance tier are applied before first paint so the window
+    never flashes the wrong theme on launch. This mirrors applyToDocument()
+    in src/store/usePrefsStore.ts — keep the two in step.
+    Fonts are self-hosted (see src/index.css); there is no network request here.
+  -->
+  <script>
+    (function () {
+      try {
+        var theme = localStorage.getItem('toobee.theme') || 'system';
+        if (theme !== 'light' && theme !== 'dark') {
+          theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        var perf = localStorage.getItem('toobee.perf');
+        if (perf !== 'light' && perf !== 'minimal') perf = 'full';
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-perf', perf);
+      } catch (e) {
+        /* storage blocked — the attributes already on <html> stand in */
+      }
+    })();
+  </script>
 </head>
 
 <body>

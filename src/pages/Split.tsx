@@ -1,33 +1,51 @@
 import { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
-import { Download, Scissors, Plus, Trash2, FileStack, FileUp, Eye } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import EmptyStage from '../components/EmptyStage';
+import StatusBanner from '../components/StatusBanner';
+import { Download, Plus, Trash2, FileStack, FileUp } from 'lucide-react';
 import { useToolStore } from '../store/useToolStore';
+import { appendPdf } from '../utils/appendPdf';
 import { toPdfFile } from '../utils/fileConverter';
 
 interface SplitRule { id: string; name: string; range: string; }
 interface SplitResult { name: string; url: string; }
 
 export default function Split() {
-  const { document: doc, setDocument } = useToolStore();
+  const { document: doc, setDocument, noteNextChange } = useToolStore();
   const { file, bytes: pdfBytes } = doc;
   const [numPages, setNumPages] = useState(0);
   const [rules, setRules] = useState<SplitRule[]>([{ id: '1', name: 'Split 1', range: '1' }]);
   const [results, setResults] = useState<SplitResult[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (!newFiles.length) return;
+
+    // Adding a file while one is open puts its pages on the end of the stack
+    // instead of discarding the document being worked on.
+    if (pdfBytes && pdfBytes.length && file) {
+      try {
+        const merged = await appendPdf(pdfBytes, newFiles);
+        noteNextChange('Added pages');
+        setDocument(new File([merged], file.name, { type: 'application/pdf' }), merged);
+        return;
+      } catch (err) {
+        console.error('Could not append to the open document', err);
+      }
+    }
+
     let f: File;
     try {
       f = await toPdfFile(newFiles[0]);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Unsupported file type.');
+      setError(e instanceof Error ? e.message : 'That file type cannot be opened.');
       return;
     }
+    setError(null);
     const bytes = new Uint8Array(await f.arrayBuffer());
     setDocument(f, bytes);
     setResults([]);
@@ -70,72 +88,50 @@ export default function Split() {
         newResults.push({ name: rule.name || 'Split Result', url: URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })) });
       }
       setResults(newResults);
+      setError(newResults.length ? null : 'No pages matched. Check the page ranges.');
     } catch {
-      alert('Error during splitting. Check your page ranges.');
+      setError('Split failed. Check the page ranges.');
     } finally {
       setIsProcessing(false);
     }
   };
 
+  const activeRules = rules.filter(r => r.range.trim()).length;
+
   return (
-    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="fade-in">
       <header className="view-header">
-        <div>
-          <h1>Advanced Multi-Split</h1>
-          <p>Define multiple split rules to carve your document into exactly the files you need.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          {file && <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}><FileUp size={18} /> Select New PDF</button>}
-          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) { setResults([]); handleFilesSelected(Array.from(e.target.files)); } }} style={{ display: 'none' }} accept={ACCEPTED_FILE_EXT} />
-        </div>
+        <h1>Split</h1>
+        {file && (
+          <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
+            <FileUp size={15} /> Add PDF
+          </button>
+        )}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={e => { if (e.target.files?.length) { setResults([]); handleFilesSelected(Array.from(e.target.files)); } }}
+          style={{ display: 'none' }}
+          accept={ACCEPTED_FILE_EXT}
+          multiple
+        />
       </header>
 
-      <div className="view-body" style={{ flex: 1, display: 'flex', gap: '1.5rem', minHeight: 0 }}>
-        <div style={{ width: '360px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto' }}>
-          {!file && <FileUploader onFilesSelected={handleFilesSelected} />}
-          {file && (
-            <div className="card glass">
-              <h3 style={{ fontSize: '1rem', marginBottom: '1.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</h3>
-              <div style={{ marginBottom: '1.25rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Split Operations</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <AnimatePresence>
-                    {rules.map(rule => (
-                      <motion.div key={rule.id} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
-                        className="card" style={{ padding: '1rem', backgroundColor: 'var(--bg-primary)' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                          <input type="text" placeholder="File Name" value={rule.name} onChange={e => updateRule(rule.id, 'name', e.target.value)}
-                            style={{ flex: 1, padding: '0.5rem', fontSize: '0.85rem', borderRadius: '0.4rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
-                          <button onClick={() => removeRule(rule.id)} className="btn btn-secondary" style={{ padding: '0.5rem', color: '#f43f5e' }}><Trash2 size={16} /></button>
-                        </div>
-                        <input type="text" placeholder="Page range (e.g. 1-3, 5)" value={rule.range} onChange={e => updateRule(rule.id, 'range', e.target.value)}
-                          style={{ width: '100%', padding: '0.5rem', fontSize: '0.85rem', borderRadius: '0.4rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                  <button className="btn btn-secondary" onClick={addRule} style={{ width: '100%', borderStyle: 'dashed' }}><Plus size={18} /> Add Another Split Rule</button>
-                  <button className="btn btn-primary" onClick={executeSplits} disabled={isProcessing || !rules.length} style={{ width: '100%', marginTop: '1rem' }}>
-                    {isProcessing ? 'Processing...' : `Generate ${rules.length} Split Files`}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div style={{ flex: 1, backgroundColor: 'var(--bg-secondary)', borderRadius: '1rem', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+      <div className="workbench">
+        <div className="stage">
           {results.length > 0 ? (
-            <div style={{ flex: 1, overflowY: 'auto', padding: '2rem' }}>
-              <div className="tool-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.5rem' }}>
+            <div className="stage-scroll">
+              <div className="result-grid">
                 {results.map((res, i) => (
-                  <div key={i} className="card tool-card fade-in" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', backgroundColor: 'var(--bg-primary)', cursor: 'default' }}>
-                    <div className="tool-icon" style={{ width: '40px', height: '40px', backgroundColor: 'rgba(99,102,241,0.1)', color: 'var(--accent)' }}><FileStack size={20} /></div>
-                    <div>
-                      <h3 style={{ fontSize: '1rem', marginBottom: '0.25rem' }}>{res.name}</h3>
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Ready for download</p>
-                    </div>
-                    <button className="btn btn-primary" style={{ marginTop: 'auto' }} onClick={() => { const a = document.createElement('a'); a.href = res.url; a.download = `${res.name}.pdf`; a.click(); }}>
-                      <Download size={16} /> Download
+                  <div key={i} className="result-card">
+                    <div className="tool-icon"><FileStack size={18} /></div>
+                    <h3>{res.name}</h3>
+                    <p className="hint">Ready to save</p>
+                    <button
+                      className="btn btn-secondary btn-block"
+                      onClick={() => { const a = document.createElement('a'); a.href = res.url; a.download = `${res.name}.pdf`; a.click(); }}
+                    >
+                      <Download size={14} /> Save
                     </button>
                   </div>
                 ))}
@@ -144,12 +140,85 @@ export default function Split() {
           ) : pdfBytes ? (
             <PdfPreviewer pdfBytes={pdfBytes} />
           ) : (
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', gap: '1rem' }}>
-              {file ? <Scissors size={48} opacity={0.2} /> : <Eye size={48} opacity={0.2} />}
-              <p style={{ opacity: 0.5 }}>{file ? 'Define split rules to generate files' : 'Select a PDF to begin splitting'}</p>
-            </div>
+            <EmptyStage
+              motif="split"
+              headline={"Split a PDF into parts"}
+              onFilesSelected={handleFilesSelected}
+            />
           )}
         </div>
+
+        <aside className="inspector">
+          <div className="inspector-body">
+            {file && (
+              <>
+                <div className="inspector-group">
+                  <div className="t-eyebrow">Document</div>
+                  <div className="file-name" title={file.name}>{file.name}</div>
+                  {numPages > 0 && (
+                    <p className="hint"><span className="num">{numPages}</span> pages</p>
+                  )}
+                </div>
+
+                <div className="inspector-group">
+                  <div className="t-eyebrow">Output files</div>
+                  <div className="rule-list">
+                    {rules.map((rule, i) => (
+                      <div key={rule.id} className="rule">
+                        <div className="rule-head">
+                          <span className="queue-index num">{i + 1}</span>
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder="File name"
+                            aria-label={`File name for output ${i + 1}`}
+                            value={rule.name}
+                            onChange={e => updateRule(rule.id, 'name', e.target.value)}
+                          />
+                          <button
+                            className="btn btn-danger btn-icon btn-sm"
+                            onClick={() => removeRule(rule.id)}
+                            aria-label={`Remove output ${i + 1}`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          className="input input-mono"
+                          placeholder="1-3, 5"
+                          aria-label={`Page range for output ${i + 1}`}
+                          value={rule.range}
+                          onChange={e => updateRule(rule.id, 'range', e.target.value)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <button className="btn btn-secondary btn-block" onClick={addRule}>
+                    <Plus size={15} /> Add another file
+                  </button>
+                  <p className="hint">Use commas for single pages and a dash for a run, like 1-3, 5.</p>
+                </div>
+
+                {error && <StatusBanner type="error" message={error} />}
+              </>
+            )}
+          </div>
+
+          {file && (
+            <div className="inspector-action">
+              <button
+                className="btn btn-primary btn-block"
+                onClick={executeSplits}
+                disabled={isProcessing || activeRules === 0}
+              >
+                {isProcessing
+                  ? 'Splitting…'
+                  : activeRules === 1 ? 'Split into 1 file' : `Split into ${activeRules} files`}
+              </button>
+            </div>
+          )}
+        </aside>
       </div>
     </div>
   );

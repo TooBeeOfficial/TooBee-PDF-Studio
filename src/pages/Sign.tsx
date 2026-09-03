@@ -1,11 +1,18 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import EmptyStage from '../components/EmptyStage';
+import { appendPdf } from '../utils/appendPdf';
+import ValueInput from '../components/ValueInput';
 import { toPdfFile } from '../utils/fileConverter';
 import { useToolStore } from '../store/useToolStore';
-import { Download, PenTool, Trash2, Save, FileUp, ZoomIn, ZoomOut, Search, Plus, Palette } from 'lucide-react';
+import { useSystemFonts } from '../hooks/useSystemFonts';
+import { usePreviewShortcuts } from '../hooks/usePreviewShortcuts';
+import { useFitOnLoad } from '../hooks/useFitOnLoad';
+import { Download, Trash2, Save, FileUp, ZoomIn, ZoomOut, Search, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const PRESET_COLORS = [
@@ -44,13 +51,21 @@ export default function Sign() {
   const [selectedColor, setSelectedColor] = useState("#000000");
   const [currentPage, setCurrentPage] = useState(1);
   const [numPages, setNumPages] = useState(0);
-  const [visualScale, setVisualScale] = useState(1.5);
+  const [visualScale, setVisualScale] = useState(1);
+  const stageRef = useRef<HTMLDivElement>(null);
+  // Scale the bitmap on screen was drawn at; see PdfPreviewer for why.
+  const [shownScale, setShownScale] = useState(0);
+  // Natural page size in points, so the frame can take the requested size
+  // immediately — a CSS transform does not change layout, so without this the
+  // frame would lag the scaled canvas and let it spill past its border.
+  const [pageSize, setPageSize] = useState({ width: 0, height: 0 });
   
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
 
   // Custom Font state
   const [customFonts, setCustomFonts] = useState<CustomFont[]>([]);
+  const { systemFonts, status: fontStatus, load: loadSystemFonts } = useSystemFonts();
   const fontInputRef = useRef<HTMLInputElement>(null);
   const [fontSearch, setFontSearch] = useState('Helvetica');
   const [showFontDropdown, setShowFontDropdown] = useState(false);
@@ -62,8 +77,10 @@ export default function Sign() {
 
   const allFontFamilies = useMemo(() => {
     const customNames = customFonts.map(f => f.name);
-    return [...SYSTEM_FONTS, ...customNames];
-  }, [customFonts]);
+    // Built-ins first (these are the ones that survive export), then uploaded
+    // files, then everything installed on the machine.
+    return Array.from(new Set([...SYSTEM_FONTS, ...customNames, ...systemFonts]));
+  }, [customFonts, systemFonts]);
 
   const filteredFonts = useMemo(() => {
     const filtered = allFontFamilies.filter(f => f.toLowerCase().includes(fontSearch.toLowerCase()));
@@ -82,6 +99,7 @@ export default function Sign() {
       const page = await pdf.getPage(pageNum);
       const dpi = window.devicePixelRatio || 1;
       const viewport = page.getViewport({ scale: scale * dpi });
+      setPageSize({ width: viewport.width / dpi / scale, height: viewport.height / dpi / scale });
       
       const buffer = bufferCanvasRef.current;
       if (!buffer) return;
@@ -107,6 +125,7 @@ export default function Sign() {
           main.style.width = buffer.style.width;
           main.style.height = buffer.style.height;
           main.getContext('2d')?.drawImage(buffer, 0, 0);
+          setShownScale(scale);
         }
       }
     } catch (e: any) {
@@ -116,6 +135,19 @@ export default function Sign() {
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (newFiles.length === 0) return;
+
+    // Appending leaves existing signatures on the pages they were placed on.
+    if (currentPdfBytes && currentPdfBytes.length && file) {
+      try {
+        const merged = await appendPdf(currentPdfBytes, newFiles);
+        noteNextChange('Added pages');
+        setDocument(new File([merged], file.name, { type: 'application/pdf' }), merged);
+        return;
+      } catch (err) {
+        console.error('Could not append to the open document', err);
+      }
+    }
+
     let selectedFile: File;
     try {
       selectedFile = await toPdfFile(newFiles[0]);
@@ -181,11 +213,29 @@ export default function Sign() {
     setSignatures(prev => [...prev, newSig]);
   };
 
+  const { onWheel: onPreviewWheel } = usePreviewShortcuts({
+    enabled: !!file,
+    zoom: { value: visualScale, set: setVisualScale, min: 0.25, max: 4, step: 0.2, reset: 1 },
+    page: { current: currentPage, total: numPages, set: setCurrentPage },
+  });
+
+  // Open with the first page fitted to the stage rather than at a fixed zoom.
+  useFitOnLoad({
+    key: file && currentPdfBytes ? `${file.name}:${currentPdfBytes.length}` : null,
+    stageRef,
+    canvasRef: mainCanvasRef,
+    scale: visualScale,
+    setScale: setVisualScale,
+  });
+
   const applySignatures = async () => {
     if (!currentPdfBytes) return;
     setIsProcessing(true);
     try {
       const pdfDoc = await PDFDocument.load(currentPdfBytes.slice(0));
+      // Required before embedFont() will accept anything outside the standard
+      // 14 faces. Without it, every uploaded font threw here.
+      pdfDoc.registerFontkit(fontkit);
       const pages = pdfDoc.getPages();
       for (const sig of signatures) {
         const page = pages[sig.page - 1];
@@ -246,164 +296,250 @@ export default function Sign() {
   }, [currentPage, performRender, visualScale]);
 
   return (
-    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="fade-in">
       <header className="view-header">
-        <div>
-          <h1>Sign PDF</h1>
-          <p>Digital signature with custom typefaces and colors.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <div className="btn-group glass" style={{ display: 'flex', gap: '0.25rem', padding: '0.25rem', borderRadius: '0.5rem' }}>
-            <button className="btn btn-secondary" onClick={() => handleZoom(-0.2)}><ZoomOut size={18} /></button>
-            <span style={{ display: 'flex', alignItems: 'center', padding: '0 0.5rem', minWidth: '55px', justifyContent: 'center', fontSize: '0.85rem' }}>{Math.round(visualScale * 100)}%</span>
-            <button className="btn btn-secondary" onClick={() => handleZoom(0.2)}><ZoomIn size={18} /></button>
-          </div>
-          <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
-            <FileUp size={18} /> Select New PDF
-          </button>
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={(e) => {
-              if (e.target.files?.length) {
-                setSignatures([]);
-                setCurrentPage(1);
-                handleFilesSelected(Array.from(e.target.files));
-              }
-            }} 
-            style={{ display: 'none' }}
-            accept={ACCEPTED_FILE_EXT}
-          />
-          {signatures.length > 0 && <button className="btn btn-primary" onClick={applySignatures} disabled={isProcessing}><Save size={18} /> Finalize</button>}
-          {currentPdfBytes && <button className="btn btn-secondary" onClick={() => { const a = document.createElement('a'); a.href = currentPdfUrl!; a.download = 'signed.pdf'; a.click(); }}><Download size={18} /> Download</button>}
-        </div>
+        <h1>Sign</h1>
       </header>
 
-      <div className="view-body" style={{ flex: 1, display: 'flex', gap: '1.5rem', minHeight: 0 }}>
-        <div style={{ width: '340px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto' }}>
-          <div className="card glass" style={{ padding: '1rem' }}>
-            <h3 style={{ fontSize: '0.65rem', marginBottom: '0.75rem', color: 'var(--text-secondary)', letterSpacing: '0.08em' }}>SIGNATURE IDENTITY</h3>
-            <input 
-              type="text" 
-              placeholder="Type name..." 
-              value={signatureText} 
-              onChange={(e) => setSignatureText(e.target.value)} 
-              style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'white', marginBottom: '1rem', fontSize: '1.15rem', fontFamily: selectedFont, textAlign: 'center' }} 
+      <div className="workbench">
+        <div className="stage" onWheel={onPreviewWheel}>
+          {!file ? (
+            <EmptyStage
+              motif="sign"
+              headline={"Sign a document"}
+              onFilesSelected={handleFilesSelected}
             />
-            
-            <div style={{ position: 'relative', marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', gap: '0.4rem' }}>
-                <div style={{ flex: 1, position: 'relative' }}>
-                  <input
-                    type="text"
-                    placeholder="Search fonts..."
-                    value={fontSearch}
-                    onFocus={() => setShowFontDropdown(true)}
-                    onChange={(e) => { setFontSearch(e.target.value); setShowFontDropdown(true); }}
-                    style={{ width: '100%', padding: '0.5rem 0.5rem 0.5rem 2rem', borderRadius: '0.4rem', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'white', fontSize: '0.85rem' }}
-                  />
-                  <Search size={14} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }} />
-                </div>
-                <button className="btn btn-secondary" style={{ padding: '0.5rem' }} onClick={() => fontInputRef.current?.click()}>
-                  <Plus size={18} />
-                </button>
-                <input type="file" ref={fontInputRef} hidden accept=".ttf,.otf" onChange={handleFontUpload} />
-              </div>
-
-              <AnimatePresence>
-                {showFontDropdown && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '0.5rem', marginTop: '0.5rem', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 10px 25px rgba(0,0,0,0.5)' }}
-                  >
-                    {filteredFonts.length > 0 ? filteredFonts.map(f => (
-                      <div
-                        key={f}
-                        onClick={() => {
-                          setSelectedFont(f);
-                          setFontSearch(f);
-                          setShowFontDropdown(false);
-                        }}
-                        style={{ padding: '0.6rem 1rem', cursor: 'pointer', fontSize: '0.85rem', fontFamily: f, borderBottom: '1px solid rgba(255,255,255,0.05)', backgroundColor: selectedFont === f ? 'rgba(99,102,241,0.2)' : 'transparent' }}
-                      >
-                        {f.replace('RomanItalic', '').replace('Bold', '')}
-                      </div>
-                    )) : (
-                      <div style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', opacity: 0.5 }}>No fonts found</div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              {showFontDropdown && <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={() => setShowFontDropdown(false)} />}
-            </div>
-
-            <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-primary)', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Palette size={12} /> INK COLOR
-              </div>
-              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                <div style={{ position: 'relative', width: '32px', height: '32px', flexShrink: 0 }}>
-                  <input 
-                    type="color" 
-                    value={selectedColor} 
-                    onChange={(e) => setSelectedColor(e.target.value)}
-                    style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none', padding: 0, cursor: 'pointer', background: 'none' }} 
-                  />
-                  <div style={{ pointerEvents: 'none', position: 'absolute', inset: 0, borderRadius: '4px', border: '1px solid rgba(255,255,255,0.2)', backgroundColor: selectedColor }} />
-                </div>
-                <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '0.2rem' }}>
-                  {PRESET_COLORS.map(c => (
-                    <button key={c} onClick={() => setSelectedColor(c)}
-                      style={{ width: '100%', aspectRatio: '1', borderRadius: '3px', background: c, border: selectedColor === c ? '2px solid var(--accent)' : '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }} />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="card glass" style={{ flex: 1, overflowY: 'auto', minHeight: '150px' }}>
-            <h3 style={{ fontSize: '0.75rem', marginBottom: '1rem', color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>PLACED SIGNATURES</h3>
-            {signatures.length === 0 && <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', opacity: 0.5, marginTop: '1rem' }}>No signatures placed yet.</p>}
-            {signatures.map(sig => (
-              <div key={sig.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.625rem', borderRadius: '0.35rem', background: 'rgba(255,255,255,0.03)', marginBottom: '0.5rem' }}>
-                <span style={{ fontSize: '0.8rem', fontFamily: sig.font, color: sig.color, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>{sig.text}</span>
-                <button onClick={() => setSignatures(prev => prev.filter(s => s.id !== sig.id))} style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer' }}>
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem', overflow: 'hidden' }} onWheel={handleWheelZoom}>
-          {!file && <FileUploader onFilesSelected={handleFilesSelected} />}
-          {file && (
+          ) : (
             <>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', alignItems: 'center', flexShrink: 0 }}>
-                <button className="btn btn-secondary" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1}>Prev</button>
-                <span style={{ fontSize: '0.85rem' }}>Page {currentPage} of {numPages}</span>
-                <button className="btn btn-secondary" onClick={() => setCurrentPage(p => Math.min(numPages, p + 1))} disabled={currentPage >= numPages}>Next</button>
-              </div>
-              
-              <div style={{ flex: 1, overflow: 'auto', position: 'relative', display: 'flex', justifyContent: 'center', backgroundColor: 'var(--bg-secondary)', borderRadius: '1rem', padding: '2rem' }} onMouseEnter={() => setIsHovering(true)} onMouseLeave={() => setIsHovering(false)}>
-                <div style={{ position: 'relative', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', cursor: signatureText ? 'none' : 'default', height: 'fit-content' }}>
-                  <canvas ref={mainCanvasRef} onMouseMove={handleMouseMove} onClick={handleCanvasClick} style={{ display: 'block' }} />
+              <div
+                className="stage-canvas"
+                ref={stageRef}
+                onMouseEnter={() => setIsHovering(true)}
+                onMouseLeave={() => setIsHovering(false)}
+              >
+                <div
+                  className="canvas-frame"
+                  style={{
+                    cursor: signatureText ? 'none' : 'default',
+                    ...(pageSize.width ? {
+                      width: pageSize.width * visualScale,
+                      height: pageSize.height * visualScale,
+                    } : {}),
+                  }}
+                >
+                  {/* Carries the previous bitmap, scaled, until the re-render lands. */}
+                  <div style={shownScale > 0 ? {
+                    transform: `scale(${visualScale / shownScale})`,
+                    transformOrigin: '0 0',
+                  } : undefined}>
+                    <canvas ref={mainCanvasRef} onMouseMove={handleMouseMove} onClick={handleCanvasClick} style={{ display: 'block' }} />
+                  </div>
                   <canvas ref={bufferCanvasRef} style={{ display: 'none' }} />
-                  
+
                   {isHovering && signatureText && (
                     <div style={{ position: 'absolute', left: `${mousePos.x}%`, top: `${mousePos.y}%`, color: selectedColor, pointerEvents: 'none', fontSize: `${24 * visualScale}px`, fontFamily: selectedFont, transform: 'translate(-50%, -50%)', opacity: 0.5, whiteSpace: 'nowrap', zIndex: 100 }}>{signatureText}</div>
                   )}
-                  
+
                   {signatures.filter(s => s.page === currentPage).map(sig => (
                     <div key={sig.id} style={{ position: 'absolute', left: `${sig.x}%`, top: `${sig.y}%`, color: sig.color, pointerEvents: 'none', fontSize: `${24 * visualScale}px`, fontFamily: sig.font, transform: 'translate(-50%, -50%)', whiteSpace: 'nowrap', zIndex: 50 }}>{sig.text}</div>
                   ))}
                 </div>
               </div>
+
+              {/* Page navigation belongs under the document it moves through. */}
+              <div className="page-nav">
+                <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1}>Prev</button>
+                <span className="page-nav-label">
+                  Page <span className="num">{currentPage}</span> of <span className="num">{numPages}</span>
+                </span>
+                <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.min(numPages, p + 1))} disabled={currentPage >= numPages}>Next</button>
+              </div>
             </>
           )}
         </div>
+
+        <aside className="inspector">
+          <div className="inspector-body">
+            <div className="inspector-group">
+              <div className="t-eyebrow">Document</div>
+              {file && <div className="file-name" title={file.name}>{file.name}</div>}
+              <div className="zoom-control">
+                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleZoom(-0.2)} aria-label="Zoom out"><ZoomOut size={14} /></button>
+                <ValueInput label="Zoom" suffix="%" min={25} max={400} step={10} width={56}
+                value={Math.round(visualScale * 100)}
+                onCommit={v => setVisualScale(v / 100)} />
+                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleZoom(0.2)} aria-label="Zoom in"><ZoomIn size={14} /></button>
+              </div>
+              <button className="btn btn-secondary btn-block" onClick={() => fileInputRef.current?.click()}>
+                <FileUp size={15} /> Add PDF
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={(e) => {
+                  if (e.target.files?.length) {
+                    setSignatures([]);
+                    setCurrentPage(1);
+                    handleFilesSelected(Array.from(e.target.files));
+                  }
+                }}
+                style={{ display: 'none' }}
+                accept={ACCEPTED_FILE_EXT}
+                multiple
+              />
+            </div>
+
+            <div className="inspector-group">
+              <div className="t-eyebrow">Signature</div>
+
+              <div className="field">
+                <label htmlFor="sign-name">Name</label>
+                <input
+                  id="sign-name"
+                  type="text"
+                  className="input signature-preview"
+                  placeholder="Type a name"
+                  value={signatureText}
+                  onChange={(e) => setSignatureText(e.target.value)}
+                  style={{ fontFamily: selectedFont }}
+                />
+              </div>
+
+              <div className="field" style={{ position: 'relative' }}>
+                <label htmlFor="sign-font">Typeface</label>
+                <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
+                  <div className="input-with-icon">
+                    <Search size={13} />
+                    <input
+                      id="sign-font"
+                      onClick={loadSystemFonts}
+                      type="text"
+                      className="input"
+                      placeholder="Search fonts"
+                      value={fontSearch}
+                      onFocus={() => setShowFontDropdown(true)}
+                      onChange={(e) => { setFontSearch(e.target.value); setShowFontDropdown(true); }}
+                    />
+                  </div>
+                  <button className="btn btn-secondary btn-icon" onClick={() => fontInputRef.current?.click()} aria-label="Add a font file">
+                    <Plus size={15} />
+                  </button>
+                  <input type="file" ref={fontInputRef} hidden accept=".ttf,.otf" onChange={handleFontUpload} />
+                </div>
+
+                <AnimatePresence>
+                  {showFontDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      className="font-menu"
+                    >
+                      {filteredFonts.length > 0 ? filteredFonts.map(f => (
+                        <button
+                          key={f}
+                          type="button"
+                          className={`font-option ${selectedFont === f ? 'selected' : ''}`}
+                          style={{ fontFamily: f }}
+                          onClick={() => {
+                            setSelectedFont(f);
+                            setFontSearch(f);
+                            setShowFontDropdown(false);
+                          }}
+                        >
+                          {f.replace('RomanItalic', '').replace('Bold', '')}
+                        </button>
+                      )) : (
+                        <p className="hint" style={{ padding: 'var(--s-2) var(--s-3)' }}>No fonts found</p>
+                      )}
+                      {fontStatus === 'loading' && (
+                        <p className="font-menu-note">Reading installed fonts…</p>
+                      )}
+                      {fontStatus === 'ready' && (
+                        <p className="font-menu-note">
+                          <span className="num">{systemFonts.length}</span> fonts installed on this machine
+                        </p>
+                      )}
+                      {(fontStatus === 'denied' || fontStatus === 'unavailable') && (
+                        <p className="font-menu-note">Installed fonts could not be read. Upload a font file with +.</p>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {showFontDropdown && <div className="menu-scrim" onClick={() => setShowFontDropdown(false)} />}
+              </div>
+
+              <div className="field">
+                <label>Ink</label>
+                <div className="swatch-row">
+                  <span className="swatch-native">
+                    <input
+                      type="color"
+                      value={selectedColor}
+                      onChange={(e) => setSelectedColor(e.target.value)}
+                      aria-label="Custom ink colour"
+                    />
+                    <span style={{ background: selectedColor }} />
+                  </span>
+                  <div className="swatches">
+                    {PRESET_COLORS.map(c => (
+                      <button
+                        key={c}
+                        onClick={() => setSelectedColor(c)}
+                        className={`swatch ${selectedColor === c ? 'selected' : ''}`}
+                        style={{ background: c }}
+                        aria-label={`Ink ${c}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="inspector-group">
+              <div className="t-eyebrow">
+                Placed
+                {signatures.length > 0 && <span className="count num">{signatures.length}</span>}
+              </div>
+              {signatures.length === 0 ? (
+                <p className="hint">Click the page to place a signature.</p>
+              ) : (
+                <ul className="queue">
+                  {signatures.map(sig => (
+                    <li key={sig.id} className="queue-item">
+                      <span className="queue-name" style={{ fontFamily: sig.font, color: sig.color }}>{sig.text}</span>
+                      <button
+                        className="btn btn-danger btn-icon btn-sm"
+                        onClick={() => setSignatures(prev => prev.filter(s => s.id !== sig.id))}
+                        aria-label={`Remove signature ${sig.text}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          {file && (
+            <div className="inspector-action">
+              {signatures.length > 0 && (
+                <button className="btn btn-primary btn-block" onClick={applySignatures} disabled={isProcessing}>
+                  <Save size={15} /> {isProcessing ? 'Applying…' : 'Apply signatures'}
+                </button>
+              )}
+              {currentPdfBytes && (
+                <button
+                  className="btn btn-secondary btn-block"
+                  onClick={() => { const a = document.createElement('a'); a.href = currentPdfUrl!; a.download = 'signed.pdf'; a.click(); }}
+                >
+                  <Download size={15} /> Save signed PDF
+                </button>
+              )}
+            </div>
+          )}
+        </aside>
       </div>
     </div>
   );

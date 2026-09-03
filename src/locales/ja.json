@@ -39,7 +39,11 @@
       "extractFolderDesc": "すべてのページを個別のPDFに分割し、ZIPとしてダウンロードします。",
       "protectDesc": "128ビットRC4パスワードでドキュメントを暗号化します。",
       "unlockDesc": "パスワード保護を解除して自由にエクスポートします。"
-    }
+    },
+    "headline": "すべてのPDFツールを、このパソコンだけで。",
+    "mastheadSub": "アップロードは一切なく、データはこのパソコンから出ません。ツールを選んでください。",
+    "emptyOpen": "ここにPDFをドロップ",
+    "emptyOpenSub": "またはクリックして選択"
   },
   "settings": {
     "title": "設定",
@@ -47,7 +51,29 @@
     "theme": "テーマ",
     "darkMode": "ダークモード",
     "lightMode": "ライトモード",
-    "close": "閉じる"
+    "close": "閉じる",
+    "themeSystem": "システム",
+    "themeLight": "ライト",
+    "themeDark": "ダーク",
+    "performance": "パフォーマンス",
+    "perfFull": "フル",
+    "perfLight": "軽量",
+    "perfMinimal": "最小",
+    "perfFullHint": "すべて有効。最新のパソコン向けです。",
+    "perfLightHint": "最初に生成するページのサムネイルを減らします。",
+    "perfMinimalHint": "アニメーションなし。古くて遅いパソコン向けです。",
+    "shortcuts": "キーボードショートカット",
+    "scTools": "ツールへ移動",
+    "scDashboard": "ダッシュボード",
+    "scSettings": "設定",
+    "scTheme": "ライト / ダークを切り替え",
+    "shortcutsPreview": "プレビュー内",
+    "scZoom": "ズーム",
+    "scZoomReset": "ズームをリセット",
+    "scPage": "前 / 次のページ",
+    "scNudge": "選択を微調整",
+    "scDeleteSel": "選択を削除",
+    "scWheel": "ホイール"
   },
   "common": {
     "addMore": "ファイルを追加",
@@ -70,5 +96,15 @@
     "preview": "ファイルを追加してプレビューを表示",
     "downloadMerged": "結合されたPDFをダウンロード",
     "fail": "ファイルの結合に失敗しました。有効なファイルであることを確認してください。"
+  },
+  "perf": {
+    "hint": "このパソコンは軽量モードの方が快適に動作する可能性があります。",
+    "switchToLight": "軽量に切り替え",
+    "keepFull": "フルのまま",
+    "dismiss": "閉じる"
+  },
+  "ledger": {
+    "title": "作業中の文書",
+    "close": "文書を閉じる"
   }
 }

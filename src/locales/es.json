@@ -39,7 +39,11 @@
       "extractFolderDesc": "Divide cada página en su propio PDF y descárgalo como ZIP.",
       "protectDesc": "Cifra tu documento con una contraseña RC4 de 128 bits.",
       "unlockDesc": "Elimina la protección con contraseña y exporta libremente."
-    }
+    },
+    "headline": "Todas las herramientas PDF, en este equipo.",
+    "mastheadSub": "No se sube nada y nada sale del equipo. Elige una herramienta para empezar.",
+    "emptyOpen": "Suelta un PDF aquí",
+    "emptyOpenSub": "o haz clic para buscar"
   },
   "settings": {
     "title": "Ajustes",
@@ -47,7 +51,29 @@
     "theme": "Tema",
     "darkMode": "Modo Oscuro",
     "lightMode": "Modo Claro",
-    "close": "Cerrar"
+    "close": "Cerrar",
+    "themeSystem": "Sistema",
+    "themeLight": "Claro",
+    "themeDark": "Oscuro",
+    "performance": "Rendimiento",
+    "perfFull": "Completo",
+    "perfLight": "Ligero",
+    "perfMinimal": "Mínimo",
+    "perfFullHint": "Todo activado. Ideal para equipos modernos.",
+    "perfLightHint": "Genera menos miniaturas de páginas al principio.",
+    "perfMinimalHint": "Sin animaciones. Para equipos antiguos y lentos.",
+    "shortcuts": "Atajos de teclado",
+    "scTools": "Ir a una herramienta",
+    "scDashboard": "Panel",
+    "scSettings": "Ajustes",
+    "scTheme": "Cambiar claro / oscuro",
+    "shortcutsPreview": "En la vista previa",
+    "scZoom": "Zoom",
+    "scZoomReset": "Restablecer zoom",
+    "scPage": "Página anterior / siguiente",
+    "scNudge": "Mover selección",
+    "scDeleteSel": "Eliminar selección",
+    "scWheel": "rueda"
   },
   "common": {
     "addMore": "Añadir Más Archivos",
@@ -70,5 +96,15 @@
     "preview": "Añade archivos para ver la vista previa",
     "downloadMerged": "Descargar PDF Unido",
     "fail": "Error al unir los archivos. Asegúrate de que sean válidos."
+  },
+  "perf": {
+    "hint": "Este equipo puede funcionar mejor en modo Ligero.",
+    "switchToLight": "Cambiar a Ligero",
+    "keepFull": "Mantener Completo",
+    "dismiss": "Descartar"
+  },
+  "ledger": {
+    "title": "Documento actual",
+    "close": "Cerrar documento"
   }
 }

@@ -39,7 +39,11 @@
       "extractFolderDesc": "Her sayfayı kendi PDF'sine bölün ve ZIP olarak indirin.",
       "protectDesc": "Belgenizi 128 bit RC4 şifresiyle şifreleyin.",
       "unlockDesc": "Şifre korumasını kaldırın ve özgürce dışa aktarın."
-    }
+    },
+    "headline": "Tüm PDF araçları, bu bilgisayarda.",
+    "mastheadSub": "Hiçbir şey yüklenmez, hiçbir şey bilgisayardan çıkmaz. Bir araç seçin.",
+    "emptyOpen": "Bir PDF'i buraya bırakın",
+    "emptyOpenSub": "veya seçmek için tıklayın"
   },
   "settings": {
     "title": "Ayarlar",
@@ -47,7 +51,29 @@
     "theme": "Tema",
     "darkMode": "Karanlık Mod",
     "lightMode": "Aydınlık Mod",
-    "close": "Kapat"
+    "close": "Kapat",
+    "themeSystem": "Sistem",
+    "themeLight": "Açık",
+    "themeDark": "Koyu",
+    "performance": "Performans",
+    "perfFull": "Tam",
+    "perfLight": "Hafif",
+    "perfMinimal": "En az",
+    "perfFullHint": "Her şey açık. Modern bilgisayarlar için.",
+    "perfLightHint": "Başlangıçta daha az sayfa küçük resmi oluşturur.",
+    "perfMinimalHint": "Hiç animasyon yok. Eski, yavaş bilgisayarlar için.",
+    "shortcuts": "Klavye kısayolları",
+    "scTools": "Bir araca geç",
+    "scDashboard": "Panel",
+    "scSettings": "Ayarlar",
+    "scTheme": "Açık / koyu değiştir",
+    "shortcutsPreview": "Önizlemede",
+    "scZoom": "Yakınlaştırma",
+    "scZoomReset": "Yakınlaştırmayı sıfırla",
+    "scPage": "Önceki / sonraki sayfa",
+    "scNudge": "Seçimi kaydır",
+    "scDeleteSel": "Seçimi sil",
+    "scWheel": "tekerlek"
   },
   "common": {
     "addMore": "Daha Fazla Dosya Ekle",
@@ -70,5 +96,15 @@
     "preview": "Önizleme için dosya ekleyin",
     "downloadMerged": "Birleştirilmiş PDF'yi İndir",
     "fail": "Birleştirme başarısız oldu. Geçerli dosyalar olduğundan emin olun."
+  },
+  "perf": {
+    "hint": "Bu bilgisayar Hafif modda daha iyi çalışabilir.",
+    "switchToLight": "Hafif moda geç",
+    "keepFull": "Tam kalsın",
+    "dismiss": "Kapat"
+  },
+  "ledger": {
+    "title": "Çalışılan belge",
+    "close": "Belgeyi kapat"
   }
 }

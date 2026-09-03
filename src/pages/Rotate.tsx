@@ -2,11 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { PDFDocument, degrees } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
-import { Download, RotateCw, Eye, ArrowLeft, ArrowRight, RefreshCw, Trash2, FileUp } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import EmptyStage from '../components/EmptyStage';
+import { Download, RotateCw, Eye, ArrowLeft, ArrowRight, RefreshCw, Trash2, FileUp, LayoutGrid } from 'lucide-react';
 import { useToolStore } from '../store/useToolStore';
+import { appendPdf } from '../utils/appendPdf';
 import { toPdfFile } from '../utils/fileConverter';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -18,7 +19,7 @@ interface PageData {
 }
 
 export default function Rotate() {
-  const { document: doc, setDocument } = useToolStore();
+  const { document: doc, setDocument, noteNextChange } = useToolStore();
   const { file, bytes: currentPdfBytes } = doc;
   const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -26,6 +27,7 @@ export default function Rotate() {
   const [isGeneratingThumbs, setIsGeneratingThumbs] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
+  const [stageView, setStageView] = useState<'pages' | 'preview'>('pages');
   const [pages, setPages] = useState<PageData[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
@@ -85,6 +87,21 @@ export default function Rotate() {
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (newFiles.length === 0) return;
+
+    // Adding a file while one is open puts its pages on the end of the stack.
+    // The effect below rebuilds the thumbnail grid from the merged document.
+    if (currentPdfBytes && currentPdfBytes.length && file) {
+      try {
+        const merged = await appendPdf(currentPdfBytes, newFiles);
+        noteNextChange('Added pages');
+        setPages([]);
+        setDocument(new File([merged], file.name, { type: 'application/pdf' }), merged);
+        return;
+      } catch (err) {
+        console.error('Could not append to the open document', err);
+      }
+    }
+
     let selectedFile: File;
     try {
       selectedFile = await toPdfFile(newFiles[0]);
@@ -226,16 +243,23 @@ export default function Rotate() {
   };
 
   return (
-    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="fade-in">
       <header className="view-header">
-        <div>
-          <h1>Rotate & Reorder</h1>
-          <p>Visually organize your document. Drag pages to move them or click to rotate.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <h1>Rotate &amp; reorder</h1>
+        <div style={{ display: 'flex', gap: 'var(--s-2)', alignItems: 'center' }}>
+          {file && (
+            <div className="segmented" role="group" aria-label="Stage view">
+              <button aria-pressed={stageView === 'pages'} onClick={() => setStageView('pages')}>
+                <LayoutGrid size={14} /> Pages
+              </button>
+              <button aria-pressed={stageView === 'preview'} onClick={() => setStageView('preview')}>
+                <Eye size={14} /> Preview
+              </button>
+            </div>
+          )}
           {file && (
             <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
-              <FileUp size={18} /> Select New PDF
+              <FileUp size={15} /> Add PDF
             </button>
           )}
           <input
@@ -248,123 +272,160 @@ export default function Rotate() {
             }}
             style={{ display: 'none' }}
             accept={ACCEPTED_FILE_EXT}
+            multiple
           />
-          {file && (
-            <button className="btn btn-secondary" onClick={async () => {
-              if (!currentPdfBytes || !file) return;
-              setIsProcessing(true);
-              const pdfDoc = await PDFDocument.load(currentPdfBytes);
-              pdfDoc.getPages().forEach(page => page.setRotation(degrees(page.getRotation().angle + 90)));
-              const bytes = await pdfDoc.save();
-              setDocument(new File([bytes], file.name, { type: 'application/pdf' }), bytes);
-              setHasChanges(true);
-              const blob = new Blob([bytes.buffer], { type: 'application/pdf' });
-              setCurrentPdfUrl(URL.createObjectURL(blob));
-
-              // Regenerate all thumbnails
-              const updatedPages = pages.map(p => ({ ...p, thumb: '' }));
-              setPages(updatedPages);
-              await generateAllThumbnails(bytes, updatedPages);
-
-              setIsProcessing(false);
-            }}>
-              <RefreshCw size={18} className={isProcessing ? 'spin' : ''} /> Rotate All 90°
-            </button>
-          )}
-          {hasChanges && (
-            <button className="btn btn-primary" onClick={() => {
-              const a = document.createElement('a');
-              a.href = currentPdfUrl!;
-              a.download = `modified_${file?.name || 'document.pdf'}`;
-              a.click();
-            }}>
-              <Download size={18} /> Download
-            </button>
-          )}
         </div>
       </header>
 
-      <div className="view-body" style={{ flex: 1, display: 'flex', gap: '1.5rem', minHeight: 0 }}>
-        <div style={{ width: '360px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto' }}>
-          {!file && <FileUploader onFilesSelected={handleFilesSelected} />}
-
-          {file && (
-            <div className="card glass">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                <h3 style={{ fontSize: '1rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{file.name}</h3>
-                {isGeneratingThumbs && <span style={{ fontSize: '0.75rem', color: 'var(--accent)' }}>Loading...</span>}
+      <div className="workbench">
+        <div className="stage">
+          {!file ? (
+            <EmptyStage
+              motif="rotate"
+              headline={"Reorder and rotate pages"}
+              onFilesSelected={handleFilesSelected}
+            />
+          ) : stageView === 'preview' ? (
+            currentPdfBytes ? (
+              <PdfPreviewer pdfBytes={currentPdfBytes} />
+            ) : (
+              <div className="empty">
+                <Eye size={32} strokeWidth={1.5} />
+                <p>Loading the document…</p>
               </div>
-
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
-                gap: '1rem',
-              }}>
-                <AnimatePresence>
-                  {pages.map((page, index) => (
-                    <motion.div
-                      key={page.id}
-                      layout
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      draggable
-                      onDragStart={(e) => { setDraggedIndex(index); e.dataTransfer.effectAllowed = 'move'; }}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        if (draggedIndex === null || draggedIndex === index) return;
-                        const newPages = [...pages];
-                        const draggedItem = newPages[draggedIndex];
-                        newPages.splice(draggedIndex, 1);
-                        newPages.splice(index, 0, draggedItem);
-                        setPages(newPages);
-                        setDraggedIndex(index);
-                      }}
-                      onDrop={(e) => { e.preventDefault(); setDraggedIndex(null); applyLiveReorder(pages); }}
-                      className="card"
-                      style={{
-                        padding: '0.5rem',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.5rem',
-                        cursor: 'grab',
-                        opacity: draggedIndex === index ? 0.5 : 1,
-                        background: 'var(--bg-primary)'
-                      }}
-                    >
-                      <div style={{ height: '160px', backgroundColor: '#e2e8f0', position: 'relative', borderRadius: '0.4rem', overflow: 'hidden' }}>
-                        <span style={{ position: 'absolute', top: '0.4rem', left: '0.4rem', backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px', zIndex: 10 }}>P{index + 1}</span>
-                        {page.thumb ? (
-                          <img src={page.thumb} alt={`P${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} draggable={false} />
-                        ) : (
-                          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>...</div>
-                        )}
-                      </div>
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <button className="btn btn-secondary" onClick={() => movePage(index, 'left')} disabled={index === 0} style={{ padding: '0.25rem' }}><ArrowLeft size={13} /></button>
-                        <button className="btn btn-secondary" onClick={() => rotateSinglePage(index)} style={{ padding: '0.25rem', color: 'var(--accent)' }}><RotateCw size={13} /></button>
-                        <button className="btn btn-secondary" onClick={() => deletePage(index)} style={{ padding: '0.25rem', color: '#f43f5e' }}><Trash2 size={13} /></button>
-                        <button className="btn btn-secondary" onClick={() => movePage(index, 'right')} disabled={index === pages.length - 1} style={{ padding: '0.25rem' }}><ArrowRight size={13} /></button>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div style={{ flex: 1, backgroundColor: 'var(--bg-secondary)', borderRadius: '1rem', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-          {currentPdfBytes ? (
-            <PdfPreviewer pdfBytes={currentPdfBytes} />
+            )
           ) : (
-            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', flexDirection: 'column', gap: '1rem' }}>
-              <Eye size={48} opacity={0.2} />
-              <p>Select a PDF to see the preview</p>
+            <div className="stage-scroll">
+              <div className="page-grid">
+                {pages.map((page, index) => (
+                  <div
+                    key={page.id}
+                    draggable
+                    onDragStart={(e) => { setDraggedIndex(index); e.dataTransfer.effectAllowed = 'move'; }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (draggedIndex === null || draggedIndex === index) return;
+                      const newPages = [...pages];
+                      const draggedItem = newPages[draggedIndex];
+                      newPages.splice(draggedIndex, 1);
+                      newPages.splice(index, 0, draggedItem);
+                      setPages(newPages);
+                      setDraggedIndex(index);
+                    }}
+                    onDrop={(e) => { e.preventDefault(); setDraggedIndex(null); applyLiveReorder(pages); }}
+                    className={`page-tile ${draggedIndex === index ? 'dragging' : ''}`}
+                  >
+                    <div className="page-thumb">
+                      <span className="page-number num">{index + 1}</span>
+                      {page.thumb ? (
+                        <img src={page.thumb} alt={`Page ${index + 1}`} draggable={false} />
+                      ) : (
+                        <span className="spinner" />
+                      )}
+                    </div>
+
+                    <div className="page-actions">
+                      <button
+                        className="btn btn-ghost btn-icon btn-sm"
+                        onClick={() => movePage(index, 'left')}
+                        disabled={index === 0}
+                        aria-label={`Move page ${index + 1} earlier`}
+                      >
+                        <ArrowLeft size={13} />
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-icon btn-sm"
+                        onClick={() => rotateSinglePage(index)}
+                        aria-label={`Rotate page ${index + 1}`}
+                      >
+                        <RotateCw size={13} />
+                      </button>
+                      <button
+                        className="btn btn-danger btn-icon btn-sm"
+                        onClick={() => deletePage(index)}
+                        disabled={pages.length <= 1}
+                        aria-label={`Delete page ${index + 1}`}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-icon btn-sm"
+                        onClick={() => movePage(index, 'right')}
+                        disabled={index === pages.length - 1}
+                        aria-label={`Move page ${index + 1} later`}
+                      >
+                        <ArrowRight size={13} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
+
+        <aside className="inspector">
+          <div className="inspector-body">
+            {file && (
+              <>
+                <div className="inspector-group">
+                  <div className="t-eyebrow">Document</div>
+                  <div className="file-name" title={file.name}>{file.name}</div>
+                  <p className="hint">
+                    <span className="num">{pages.length}</span> page{pages.length !== 1 ? 's' : ''}
+                    {isGeneratingThumbs && ' · loading previews'}
+                  </p>
+                </div>
+
+                <div className="inspector-group">
+                  <div className="t-eyebrow">Whole document</div>
+                  <button
+                    className="btn btn-secondary btn-block"
+                    disabled={isProcessing}
+                    onClick={async () => {
+                      if (!currentPdfBytes || !file) return;
+                      setIsProcessing(true);
+                      const pdfDoc = await PDFDocument.load(currentPdfBytes);
+                      pdfDoc.getPages().forEach(page => page.setRotation(degrees(page.getRotation().angle + 90)));
+                      const bytes = await pdfDoc.save();
+                      setDocument(new File([bytes], file.name, { type: 'application/pdf' }), bytes);
+                      setHasChanges(true);
+                      const blob = new Blob([bytes.buffer], { type: 'application/pdf' });
+                      setCurrentPdfUrl(URL.createObjectURL(blob));
+
+                      // Regenerate all thumbnails
+                      const updatedPages = pages.map(p => ({ ...p, thumb: '' }));
+                      setPages(updatedPages);
+                      await generateAllThumbnails(bytes, updatedPages);
+
+                      setIsProcessing(false);
+                    }}
+                  >
+                    <RefreshCw size={15} className={isProcessing ? 'spin' : ''} /> Rotate every page 90°
+                  </button>
+                </div>
+
+                <p className="hint">Drag a page to move it, or use the arrows under each one.</p>
+              </>
+            )}
+          </div>
+
+          {hasChanges && (
+            <div className="inspector-action">
+              <button
+                className="btn btn-primary btn-block"
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = currentPdfUrl!;
+                  a.download = `modified_${file?.name || 'document.pdf'}`;
+                  a.click();
+                }}
+              >
+                <Download size={15} /> Save changes
+              </button>
+            </div>
+          )}
+        </aside>
       </div>
     </div>
   );

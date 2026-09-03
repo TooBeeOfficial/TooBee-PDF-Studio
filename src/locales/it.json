@@ -39,7 +39,11 @@
       "extractFolderDesc": "Dividi ogni pagina nel proprio PDF e scaricalo come ZIP.",
       "protectDesc": "Cripta il tuo documento con una password RC4 a 128 bit.",
       "unlockDesc": "Rimuovi la protezione tramite password."
-    }
+    },
+    "headline": "Tutti gli strumenti PDF, su questo computer.",
+    "mastheadSub": "Niente viene caricato e niente lascia il computer. Scegli uno strumento per iniziare.",
+    "emptyOpen": "Trascina qui un PDF",
+    "emptyOpenSub": "oppure fai clic per sfogliare"
   },
   "settings": {
     "title": "Impostazioni",
@@ -47,7 +51,29 @@
     "theme": "Tema",
     "darkMode": "Modalità Scura",
     "lightMode": "Modalità Chiara",
-    "close": "Chiudi"
+    "close": "Chiudi",
+    "themeSystem": "Sistema",
+    "themeLight": "Chiaro",
+    "themeDark": "Scuro",
+    "performance": "Prestazioni",
+    "perfFull": "Completa",
+    "perfLight": "Leggera",
+    "perfMinimal": "Minima",
+    "perfFullHint": "Tutto attivo. Ideale per computer moderni.",
+    "perfLightHint": "Genera meno anteprime di pagina all'inizio.",
+    "perfMinimalHint": "Nessuna animazione. Per computer vecchi e lenti.",
+    "shortcuts": "Scorciatoie da tastiera",
+    "scTools": "Vai a uno strumento",
+    "scDashboard": "Dashboard",
+    "scSettings": "Impostazioni",
+    "scTheme": "Cambia chiaro / scuro",
+    "shortcutsPreview": "Nell'anteprima",
+    "scZoom": "Zoom",
+    "scZoomReset": "Reimposta zoom",
+    "scPage": "Pagina precedente / successiva",
+    "scNudge": "Sposta selezione",
+    "scDeleteSel": "Elimina selezione",
+    "scWheel": "rotellina"
   },
   "common": {
     "addMore": "Aggiungi Altri File",
@@ -70,5 +96,15 @@
     "preview": "Aggiungi file per vedere l'anteprima",
     "downloadMerged": "Scarica PDF Unito",
     "fail": "Impossibile unire i file. Assicurati che siano validi."
+  },
+  "perf": {
+    "hint": "Questo computer potrebbe funzionare meglio in modalità Leggera.",
+    "switchToLight": "Passa a Leggera",
+    "keepFull": "Mantieni Completa",
+    "dismiss": "Chiudi"
+  },
+  "ledger": {
+    "title": "Documento in uso",
+    "close": "Chiudi documento"
   }
 }

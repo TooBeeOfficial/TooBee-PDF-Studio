@@ -1,25 +1,29 @@
 import { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { encryptPDF } from '@pdfsmaller/pdf-encrypt-lite';
-import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
+import EmptyStage from '../components/EmptyStage';
 import PasswordInput from '../components/PasswordInput';
 import StatusBanner from '../components/StatusBanner';
-import { Download, Lock, ShieldCheck, Eye, FileUp, CheckCircle2 } from 'lucide-react';
+import { Download, Lock, FileUp, CheckCircle2 } from 'lucide-react';
 import { useToolStore } from '../store/useToolStore';
+import { appendPdf } from '../utils/appendPdf';
 import { toPdfFile } from '../utils/fileConverter';
 
+// Strength is reported with a word as well as a color and a bar width, so the
+// meaning never rests on color alone.
 function getPasswordStrength(pw: string): { label: string; color: string; width: string } {
   if (!pw) return { label: '', color: 'transparent', width: '0%' };
-  if (pw.length < 6) return { label: 'Weak', color: '#ef4444', width: '25%' };
+  if (pw.length < 6) return { label: 'Weak', color: 'var(--danger)', width: '25%' };
   const score = [/[A-Z]/, /[a-z]/, /[0-9]/, /[^A-Za-z0-9]/].filter(r => r.test(pw)).length;
-  if (pw.length >= 8 && score >= 3) return { label: 'Strong', color: '#22c55e', width: '100%' };
-  if (pw.length >= 6 && score >= 2) return { label: 'Medium', color: '#d0a700', width: '60%' };
-  return { label: 'Weak', color: '#ef4444', width: '30%' };
+  if (pw.length >= 8 && score >= 3) return { label: 'Strong', color: 'var(--ok)', width: '100%' };
+  if (pw.length >= 6 && score >= 2) return { label: 'Medium', color: 'var(--amber-text)', width: '60%' };
+  return { label: 'Weak', color: 'var(--danger)', width: '30%' };
 }
 
 export default function Protect() {
-  const { document: doc, setDocument } = useToolStore();
+  const { document: doc, setDocument, noteNextChange } = useToolStore();
   const { file, bytes: pdfBytes } = doc;
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -36,6 +40,20 @@ export default function Protect() {
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (!newFiles.length) return;
+
+    // Adding a file while one is open puts its pages on the end of the stack
+    // instead of discarding the document being worked on.
+    if (pdfBytes && pdfBytes.length && file) {
+      try {
+        const merged = await appendPdf(pdfBytes, newFiles);
+        noteNextChange('Added pages');
+        setDocument(new File([merged], file.name, { type: 'application/pdf' }), merged);
+        return;
+      } catch (err) {
+        console.error('Could not append to the open document', err);
+      }
+    }
+
     let f: File;
     try {
       f = await toPdfFile(newFiles[0]);
@@ -62,79 +80,126 @@ export default function Protect() {
       // so other tools couldn't read it without a password. It stays a
       // separate download; use Unlock first if you want to keep editing it.
     } catch {
-      setError('Failed to protect PDF. The file may be corrupted or already encrypted.');
+      setError('Could not protect this PDF. It may be damaged, or already encrypted.');
     } finally {
       setIsProcessing(false);
     }
   };
 
   return (
-    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="fade-in">
       <header className="view-header">
-        <div><h1>Protect PDF</h1><p>Add real password encryption to your documents — 128-bit RC4.</p></div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          {file && <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}><FileUp size={18} /> Select New PDF</button>}
-          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }} style={{ display: 'none' }} accept={ACCEPTED_FILE_EXT} />
-        </div>
+        <h1>Protect</h1>
+        {file && (
+          <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
+            <FileUp size={15} /> Add PDF
+          </button>
+        )}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }}
+          style={{ display: 'none' }}
+          accept={ACCEPTED_FILE_EXT}
+          multiple
+        />
       </header>
 
-      <div className="view-body" style={{ flex: 1, display: 'flex', gap: '1.5rem', minHeight: 0 }}>
-        <div style={{ width: '360px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {!file && <FileUploader onFilesSelected={handleFilesSelected} />}
-          {file && (
-            <div className="card glass" style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-              <h3 style={{ fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</h3>
+      <div className="workbench">
+        <div className="stage">
+          {pdfBytes ? (
+            <PdfPreviewer pdfBytes={pdfBytes} />
+          ) : (
+            <EmptyStage
+              motif="protect"
+              headline={"Add a password"}
+              onFilesSelected={handleFilesSelected}
+            />
+          )}
+        </div>
 
-              <PasswordInput label="Set Password" value={password} placeholder="Choose a strong password…"
-                onChange={v => { setPassword(v); setSuccess(false); setProtectedUrl(null); }} />
-
-              {password && (
-                <div>
-                  <div style={{ height: '4px', borderRadius: '2px', background: 'var(--bg-primary)', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: strength.width, background: strength.color, transition: 'width 0.3s, background 0.3s', borderRadius: '2px' }} />
-                  </div>
-                  <span style={{ fontSize: '0.75rem', color: strength.color, marginTop: '0.25rem', display: 'block' }}>{strength.label}</span>
+        <aside className="inspector">
+          <div className="inspector-body">
+            {file && (
+              <>
+                <div className="inspector-group">
+                  <div className="t-eyebrow">Document</div>
+                  <div className="file-name" title={file.name}>{file.name}</div>
                 </div>
-              )}
 
-              <PasswordInput label="Confirm Password" value={confirmPassword} placeholder="Re-enter password…"
-                borderColor={passwordMismatch ? '#ef4444' : passwordsMatch ? '#22c55e' : undefined}
-                onChange={v => { setConfirmPassword(v); setSuccess(false); setProtectedUrl(null); }} />
+                <div className="inspector-group">
+                  <div className="t-eyebrow">Password</div>
 
-              {passwordMismatch && <span style={{ fontSize: '0.75rem', color: '#ef4444', marginTop: '-0.6rem' }}>Passwords do not match</span>}
-              {passwordsMatch && <span style={{ fontSize: '0.75rem', color: '#22c55e', marginTop: '-0.6rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}><CheckCircle2 size={12} /> Passwords match</span>}
+                  <PasswordInput
+                    label="New password"
+                    value={password}
+                    placeholder="Choose a strong password"
+                    onChange={v => { setPassword(v); setSuccess(false); setProtectedUrl(null); }}
+                  />
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: 'rgba(208,167,0,0.08)', border: '1px solid rgba(208,167,0,0.2)' }}>
-                <Lock size={14} color="var(--accent)" />
-                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>128-bit RC4 Encryption</span>
-              </div>
+                  {password && (
+                    <div className="strength">
+                      <div className="strength-track">
+                        <div
+                          className="strength-fill"
+                          style={{ width: strength.width, background: strength.color }}
+                        />
+                      </div>
+                      <span className="strength-label" style={{ color: strength.color }}>
+                        {strength.label}
+                      </span>
+                    </div>
+                  )}
 
-              {error && <StatusBanner type="error" message={error} />}
-              {success && <StatusBanner type="success" message="PDF protected successfully!" />}
+                  <PasswordInput
+                    label="Confirm password"
+                    value={confirmPassword}
+                    placeholder="Re-enter the password"
+                    borderColor={passwordMismatch ? 'var(--danger)' : passwordsMatch ? 'var(--ok)' : undefined}
+                    onChange={v => { setConfirmPassword(v); setSuccess(false); setProtectedUrl(null); }}
+                  />
 
-              <button className="btn btn-primary" onClick={protectPdf} disabled={isProcessing || !password || !passwordsMatch} style={{ width: '100%' }}>
+                  {passwordMismatch && (
+                    <span className="error-text">The two passwords do not match.</span>
+                  )}
+                  {passwordsMatch && (
+                    <span className="ok-text"><CheckCircle2 size={12} /> Passwords match</span>
+                  )}
+                </div>
+
+                <div className="note">
+                  <Lock size={14} />
+                  <span>Encrypted with 128-bit RC4.</span>
+                </div>
+
+                {error && <StatusBanner type="error" message={error} />}
+                {success && <StatusBanner type="success" message="Protected. Save the file below." />}
+              </>
+            )}
+          </div>
+
+          {file && (
+            <div className="inspector-action">
+              <button
+                className="btn btn-primary btn-block"
+                onClick={protectPdf}
+                disabled={isProcessing || !password || !passwordsMatch}
+              >
                 {isProcessing
-                  ? <><span className="spin" style={{ display: 'inline-block', width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%' }} /> Encrypting…</>
-                  : <><Lock size={16} /> Protect Document</>}
+                  ? <><span className="spinner" /> Protecting…</>
+                  : <><Lock size={15} /> Protect</>}
               </button>
+              {protectedUrl && (
+                <button
+                  className="btn btn-secondary btn-block"
+                  onClick={() => { const a = document.createElement('a'); a.href = protectedUrl!; a.download = protectedName; a.click(); }}
+                >
+                  <Download size={15} /> Save protected PDF
+                </button>
+              )}
             </div>
           )}
-        </div>
-
-        <div style={{ flex: 1, backgroundColor: 'var(--bg-secondary)', borderRadius: '1rem', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-          {pdfBytes ? <PdfPreviewer pdfBytes={pdfBytes} /> : (
-            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', flexDirection: 'column', gap: '1rem' }}>
-              <Lock size={48} opacity={0.2} /><p>Select a PDF to preview and protect</p>
-            </div>
-          )}
-          {protectedUrl && (
-            <div style={{ position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
-              <button className="btn btn-primary" onClick={() => { const a = document.createElement('a'); a.href = protectedUrl!; a.download = protectedName; a.click(); }} style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-                <Download size={18} /> Download Protected PDF
-              </button>
-            </div>
-          )}
-        </div>
+        </aside>
       </div>
     </div>
   );

@@ -39,7 +39,11 @@
       "extractFolderDesc": "将每一页拆分为其自己的 PDF 并作为 ZIP 下载。",
       "protectDesc": "使用 128 位 RC4 密码加密您的文档。",
       "unlockDesc": "删除密码保护并自由导出。"
-    }
+    },
+    "headline": "所有 PDF 工具，都在这台电脑上。",
+    "mastheadSub": "不上传任何内容，数据不会离开这台电脑。请选择一个工具。",
+    "emptyOpen": "将 PDF 拖放到此处",
+    "emptyOpenSub": "或点击浏览"
   },
   "settings": {
     "title": "设置",
@@ -47,7 +51,29 @@
     "theme": "主题",
     "darkMode": "深色模式",
     "lightMode": "浅色模式",
-    "close": "关闭"
+    "close": "关闭",
+    "themeSystem": "跟随系统",
+    "themeLight": "浅色",
+    "themeDark": "深色",
+    "performance": "性能",
+    "perfFull": "完整",
+    "perfLight": "轻量",
+    "perfMinimal": "最简",
+    "perfFullHint": "全部启用。适合较新的电脑。",
+    "perfLightHint": "启动时生成较少的页面缩略图。",
+    "perfMinimalHint": "完全没有动画。适合老旧、较慢的电脑。",
+    "shortcuts": "键盘快捷键",
+    "scTools": "跳转到工具",
+    "scDashboard": "仪表板",
+    "scSettings": "设置",
+    "scTheme": "切换浅色 / 深色",
+    "shortcutsPreview": "在预览中",
+    "scZoom": "缩放",
+    "scZoomReset": "重置缩放",
+    "scPage": "上一页 / 下一页",
+    "scNudge": "微调所选对象",
+    "scDeleteSel": "删除所选对象",
+    "scWheel": "滚轮"
   },
   "common": {
     "addMore": "添加更多文件",
@@ -70,5 +96,15 @@
     "preview": "添加文件以查看预览",
     "downloadMerged": "下载合并的 PDF",
     "fail": "无法合并文件。请确保它们有效。"
+  },
+  "perf": {
+    "hint": "此电脑在轻量模式下可能运行得更好。",
+    "switchToLight": "切换到轻量",
+    "keepFull": "保持完整",
+    "dismiss": "关闭"
+  },
+  "ledger": {
+    "title": "当前文档",
+    "close": "关闭文档"
   }
 }

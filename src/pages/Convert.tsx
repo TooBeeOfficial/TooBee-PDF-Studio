@@ -2,11 +2,15 @@ import { useState, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import JSZip from 'jszip';
-import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import EmptyStage from '../components/EmptyStage';
+import ValueInput from '../components/ValueInput';
 import StatusBanner from '../components/StatusBanner';
 import ProgressBar from '../components/ProgressBar';
-import { Download, FileImage, Layers, ZoomIn, ZoomOut, FileUp, Package } from 'lucide-react';
+import { Download, FileImage, ZoomIn, ZoomOut, FileUp, Package } from 'lucide-react';
 import { useToolStore } from '../store/useToolStore';
+import { appendPdf } from '../utils/appendPdf';
+import { usePreviewShortcuts } from '../hooks/usePreviewShortcuts';
 import { toPdfFile } from '../utils/fileConverter';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -14,8 +18,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 interface ImageResult { url: string; page: number; }
 
 export default function Convert() {
-  const { document: doc, setDocument } = useToolStore();
-  const { file } = doc;
+  const { document: doc, setDocument, noteNextChange } = useToolStore();
+  const { file, bytes: docBytes } = doc;
   const [images, setImages] = useState<ImageResult[]>([]);
   const [format, setFormat] = useState<'png' | 'jpg'>('png');
   const [scale, setScale] = useState<2 | 3>(2);
@@ -29,10 +33,30 @@ export default function Convert() {
   const [isZipping, setIsZipping] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { onWheel: onPreviewWheel } = usePreviewShortcuts({
+    enabled: images.length > 0,
+    zoom: { value: visualScale, set: setVisualScale, min: 0.4, max: 3, step: 0.2, reset: 1 },
+  });
+
   const revokeImages = (imgs: ImageResult[]) => imgs.forEach(img => URL.revokeObjectURL(img.url));
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (!newFiles.length) return;
+
+    // Adding a file while one is open puts its pages on the end of the stack.
+    if (docBytes && docBytes.length && file) {
+      try {
+        const merged = await appendPdf(docBytes, newFiles);
+        noteNextChange('Added pages');
+        setDocument(new File([merged], file.name, { type: 'application/pdf' }), merged);
+        revokeImages(images);
+        setImages([]); setError(null); setSuccess(false); setProgress(0); setCurrentPage(0); setTotalPages(0);
+        return;
+      } catch (err) {
+        console.error('Could not append to the open document', err);
+      }
+    }
+
     let f: File;
     try {
       f = await toPdfFile(newFiles[0]);
@@ -70,7 +94,7 @@ export default function Convert() {
       pdf.destroy();
       setImages(results); setSuccess(true);
     } catch {
-      setError('Conversion failed. The PDF may be encrypted or corrupted.');
+      setError('Could not convert this PDF. It may be encrypted or damaged.');
     } finally {
       setIsProcessing(false);
     }
@@ -100,91 +124,154 @@ export default function Convert() {
   };
 
   return (
-    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="fade-in">
       <header className="view-header">
-        <div><h1>PDF to Image</h1><p>Convert every page of your PDF into high-resolution images.</p></div>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          {file && <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}><FileUp size={18} /> Select New PDF</button>}
-          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }} style={{ display: 'none' }} accept={ACCEPTED_FILE_EXT} />
+        <h1>PDF to image</h1>
+        <div style={{ display: 'flex', gap: 'var(--s-2)', alignItems: 'center' }}>
           {images.length > 0 && (
-            <div style={{ display: 'flex', gap: '0.25rem', padding: '0.25rem', borderRadius: '0.5rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
-              <button className="btn btn-secondary" onClick={() => setVisualScale(p => Math.max(0.4, p - 0.2))}><ZoomOut size={16} /></button>
-              <span style={{ display: 'flex', alignItems: 'center', padding: '0 0.5rem', minWidth: '50px', justifyContent: 'center', fontSize: '0.82rem' }}>{Math.round(visualScale * 100)}%</span>
-              <button className="btn btn-secondary" onClick={() => setVisualScale(p => Math.min(3, p + 0.2))}><ZoomIn size={16} /></button>
+            <div className="zoom-control">
+              <button
+                className="btn btn-ghost btn-icon btn-sm"
+                onClick={() => setVisualScale(p => Math.max(0.4, p - 0.2))}
+                aria-label="Zoom out"
+              >
+                <ZoomOut size={14} />
+              </button>
+              <ValueInput label="Zoom" suffix="%" min={40} max={300} step={10} width={56}
+                value={Math.round(visualScale * 100)}
+                onCommit={v => setVisualScale(v / 100)} />
+              <button
+                className="btn btn-ghost btn-icon btn-sm"
+                onClick={() => setVisualScale(p => Math.min(3, p + 0.2))}
+                aria-label="Zoom in"
+              >
+                <ZoomIn size={14} />
+              </button>
             </div>
           )}
+          {file && (
+            <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
+              <FileUp size={15} /> Add PDF
+            </button>
+          )}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }}
+            style={{ display: 'none' }}
+            accept={ACCEPTED_FILE_EXT}
+            multiple
+          />
         </div>
       </header>
 
-      <div className="view-body" style={{ flex: 1, display: 'flex', gap: '1.5rem', minHeight: 0 }}>
-        <div style={{ width: '360px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto' }}>
-          {!file && <FileUploader onFilesSelected={handleFilesSelected} />}
+      <div className="workbench">
+        <div
+          className="stage"
+          onWheel={onPreviewWheel}
+        >
+          {images.length > 0 ? (
+            <div className="stage-scroll">
+              <div
+                className="image-grid"
+                style={{
+                  gridTemplateColumns: `repeat(auto-fill, minmax(${Math.round(200 * visualScale)}px, 1fr))`,
+                }}
+              >
+                {images.map(img => (
+                  <figure key={img.page} className="image-card">
+                    <img src={img.url} alt={`Page ${img.page}`} loading="lazy" />
+                    <figcaption>
+                      <span className="hint">Page <span className="num">{img.page}</span></span>
+                      <button className="btn btn-ghost btn-sm" onClick={() => downloadSingle(img)}>
+                        <Download size={13} /> Save
+                      </button>
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <EmptyStage
+              motif="convert"
+              headline={"Turn pages into images"}
+              onFilesSelected={handleFilesSelected}
+            />
+          )}
+        </div>
+
+        <aside className="inspector">
+          <div className="inspector-body">
+            {file && (
+              <>
+                <div className="inspector-group">
+                  <div className="t-eyebrow">Document</div>
+                  <div className="file-name" title={file.name}>{file.name}</div>
+                </div>
+
+                <div className="inspector-group">
+                  <div className="t-eyebrow">Format</div>
+                  <div className="segmented" role="group" aria-label="Image format">
+                    {(['png', 'jpg'] as const).map(f => (
+                      <button
+                        key={f}
+                        aria-pressed={format === f}
+                        onClick={() => { setFormat(f); revokeImages(images); setImages([]); setSuccess(false); }}
+                        style={{ textTransform: 'uppercase' }}
+                      >
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="inspector-group">
+                  <div className="t-eyebrow">Resolution</div>
+                  <div className="segmented" role="group" aria-label="Image resolution">
+                    {([2, 3] as const).map(s => (
+                      <button
+                        key={s}
+                        aria-pressed={scale === s}
+                        onClick={() => { setScale(s); revokeImages(images); setImages([]); setSuccess(false); }}
+                      >
+                        {s === 2 ? 'Standard' : 'High'} <span className="num">{s}×</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="hint">High doubles the file size of each image.</p>
+                </div>
+
+                {isProcessing && (
+                  <ProgressBar value={progress} label="Converting" detail={`${currentPage} / ${totalPages || '?'}`} />
+                )}
+                {error && <StatusBanner type="error" message={error} />}
+                {success && (
+                  <StatusBanner
+                    type="success"
+                    message={`${images.length} image${images.length !== 1 ? 's' : ''} ready.`}
+                  />
+                )}
+              </>
+            )}
+          </div>
+
           {file && (
-            <div className="card glass" style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-              <h3 style={{ fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</h3>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>Format</label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {(['png', 'jpg'] as const).map(f => (
-                    <button key={f} className={`btn ${format === f ? 'btn-primary' : 'btn-secondary'}`}
-                      onClick={() => { setFormat(f); revokeImages(images); setImages([]); setSuccess(false); }}
-                      style={{ flex: 1, textTransform: 'uppercase', fontSize: '0.8rem', border: format === f ? '1px solid var(--accent)' : '1px solid transparent' }}>{f}</button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>Quality</label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {([2, 3] as const).map(s => (
-                    <button key={s} className={`btn ${scale === s ? 'btn-primary' : 'btn-secondary'}`}
-                      onClick={() => { setScale(s); revokeImages(images); setImages([]); setSuccess(false); }}
-                      style={{ flex: 1, fontSize: '0.8rem', border: scale === s ? '1px solid var(--accent)' : '1px solid transparent' }}>
-                      {s === 2 ? 'Standard (2×)' : 'High (3×)'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {isProcessing && <ProgressBar value={progress} label="Converting…" detail={`${currentPage} / ${totalPages || '?'} pages`} />}
-              {error && <StatusBanner type="error" message={error} />}
-              {success && <StatusBanner type="success" message={`${images.length} image${images.length !== 1 ? 's' : ''} ready!`} />}
-              <button className="btn btn-primary" onClick={convertPdfToImages} disabled={isProcessing} style={{ width: '100%' }}>
+            <div className="inspector-action">
+              <button className="btn btn-primary btn-block" onClick={convertPdfToImages} disabled={isProcessing}>
                 {isProcessing
-                  ? <><span className="spin" style={{ display: 'inline-block', width: 15, height: 15, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%' }} /> {currentPage}/{totalPages || '…'} pages…</>
-                  : <><FileImage size={16} /> Convert to Images</>}
+                  ? <><span className="spinner" /> Converting…</>
+                  : <><FileImage size={15} /> Convert to images</>}
               </button>
               {images.length > 0 && (
-                <button className="btn btn-secondary" onClick={downloadAllAsZip} disabled={isZipping} style={{ width: '100%' }}>
+                <button className="btn btn-secondary btn-block" onClick={downloadAllAsZip} disabled={isZipping}>
                   {isZipping
-                    ? <><span className="spin" style={{ display: 'inline-block', width: 15, height: 15, border: '2px solid rgba(255,255,255,0.2)', borderTopColor: 'currentColor', borderRadius: '50%' }} /> Building ZIP…</>
-                    : <><Package size={16} /> Download All as ZIP</>}
+                    ? <><span className="spinner" /> Building ZIP…</>
+                    : <><Package size={15} /> Save all as ZIP</>}
                 </button>
               )}
             </div>
           )}
-        </div>
-
-        <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}
-          onWheel={e => { if (e.ctrlKey) { e.preventDefault(); setVisualScale(p => Math.min(3, Math.max(0.4, p + (e.deltaY > 0 ? -0.1 : 0.1)))); } }}>
-          {images.length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${Math.round(240 * visualScale)}px, 1fr))`, gap: `${1.25 * visualScale}rem`, padding: '1.5rem' }}>
-              {images.map(img => (
-                <div key={img.page} className="card glass" style={{ padding: '0.6rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <img src={img.url} alt={`Page ${img.page}`} style={{ width: '100%', borderRadius: '0.35rem', border: '1px solid var(--border-color)', display: 'block' }} loading="lazy" />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Page {img.page}</span>
-                    <button className="btn btn-secondary" onClick={() => downloadSingle(img)} style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      <Download size={13} /> Save
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', opacity: 0.25 }}>
-              <Layers size={72} style={{ marginBottom: '1rem' }} /><p>Converted images will appear here</p>
-            </div>
-          )}
-        </div>
+        </aside>
       </div>
     </div>
   );

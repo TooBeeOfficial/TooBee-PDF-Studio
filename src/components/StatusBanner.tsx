@@ -13,8 +13,14 @@ const icons = { success: CheckCircle2, error: AlertCircle, info: Info };
 export default function StatusBanner({ type, message }: Props) {
   const Icon = icons[type];
   return (
-    <div className={`status-banner status-banner--${type}`}>
-      <Icon size={14} className="status-banner__icon" />
+    // Errors interrupt; successes and notices wait for a pause. Without this a
+    // screen-reader user never learns that an operation finished.
+    <div
+      className={`status-banner status-banner--${type}`}
+      role={type === 'error' ? 'alert' : 'status'}
+      aria-live={type === 'error' ? 'assertive' : 'polite'}
+    >
+      <Icon size={14} className="status-banner__icon" aria-hidden="true" />
       <span>{message}</span>
     </div>
   );

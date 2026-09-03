@@ -1,15 +1,26 @@
 @keyframes shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
 
+/* Placeholder shown while a page rasterises. Themed rather than fixed light
+   gray, which used to glow against the dark stage. */
 .page-shimmer {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background: linear-gradient(90deg,
+      var(--surface-raised) 25%,
+      var(--surface-panel) 50%,
+      var(--surface-raised) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.4s ease-in-out infinite;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--text-faint);
 }

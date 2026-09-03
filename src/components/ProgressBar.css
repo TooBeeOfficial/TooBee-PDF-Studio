@@ -1,26 +1,36 @@
 .progress-root {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--s-1);
 }
 
 .progress-header {
   display: flex;
   justify-content: space-between;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
+  gap: var(--s-2);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* Percentages and counts are quantities, so they set in mono. */
+.progress-header span:last-child {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--text);
 }
 
 .progress-track {
-  height: 5px;
-  border-radius: 3px;
-  background: var(--bg-primary);
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-raised);
   overflow: hidden;
 }
 
+/* Flat amber, no gradient: the fill is a readout, not decoration. */
 .progress-fill {
   height: 100%;
-  border-radius: 3px;
-  background: linear-gradient(90deg, var(--accent), #f59e0b);
-  transition: width 0.15s ease;
+  border-radius: 2px;
+  background: var(--amber);
+  transition: width var(--t-panel) var(--ease);
 }

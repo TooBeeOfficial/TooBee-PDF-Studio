@@ -1,5 +1,5 @@
 import { useDropzone } from 'react-dropzone';
-import { UploadCloud, FileText } from 'lucide-react';
+import { UploadCloud } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import './FileUploader.css';
 
@@ -40,14 +40,10 @@ export default function FileUploader({ onFilesSelected, multiple = false }: Prop
     <div {...getRootProps()} className={`dropzone ${isDragActive ? 'active' : ''}`}>
       <input {...getInputProps()} />
       <div className="dropzone-icon">
-        <UploadCloud size={64} />
+        <UploadCloud size={28} strokeWidth={1.5} />
       </div>
       <h2>{isDragActive ? t('common.dropzoneTitle') : t('common.selectNew')}</h2>
       <p>{t('common.dropzoneSubtitle')}</p>
-      <div className="dropzone-badges">
-        <div className="dropzone-badge"><FileText size={16} /> {t('common.secure')}</div>
-        <div className="dropzone-badge"><FileText size={16} /> {t('common.privacyFirst')}</div>
-      </div>
     </div>
   );
 }

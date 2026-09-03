@@ -1,29 +1,48 @@
 import { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
-import { Download, FileOutput, Eye, FileUp } from 'lucide-react';
+import EmptyStage from '../components/EmptyStage';
+import StatusBanner from '../components/StatusBanner';
+import { Download, FileUp } from 'lucide-react';
 import { useToolStore } from '../store/useToolStore';
+import { appendPdf } from '../utils/appendPdf';
 import { toPdfFile } from '../utils/fileConverter';
 
 export default function Extract() {
-  const { document: doc, setDocument } = useToolStore();
+  const { document: doc, setDocument, noteNextChange } = useToolStore();
   const { file, bytes: sourceBytes } = doc;
   const [pages, setPages] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedUrl, setExtractedUrl] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (!newFiles.length) return;
+
+    // Adding a file while one is open puts its pages on the end of the stack
+    // instead of discarding the document being worked on.
+    if (sourceBytes && sourceBytes.length && file) {
+      try {
+        const merged = await appendPdf(sourceBytes, newFiles);
+        noteNextChange('Added pages');
+        setDocument(new File([merged], file.name, { type: 'application/pdf' }), merged);
+        return;
+      } catch (err) {
+        console.error('Could not append to the open document', err);
+      }
+    }
+
     let f: File;
     try {
       f = await toPdfFile(newFiles[0]);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Unsupported file type.');
+      setError(e instanceof Error ? e.message : 'That file type cannot be opened.');
       return;
     }
+    setError(null);
     const bytes = new Uint8Array(await f.arrayBuffer());
     setDocument(f, bytes);
     setExtractedUrl(null);
@@ -42,63 +61,96 @@ export default function Extract() {
       copiedPages.forEach(page => newPdf.addPage(page));
       const bytes = await newPdf.save();
       setExtractedUrl(URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })));
+      setError(null);
       // The extracted subset becomes the new working document, so other
       // tools continue from these pages instead of the full original.
       setDocument(new File([bytes], file.name, { type: 'application/pdf' }), bytes);
     } catch {
-      alert('Error extracting pages. Check your page numbers (e.g. 1, 3, 5)');
+      setError('No pages matched. Enter page numbers separated by commas, like 1, 3, 5.');
     } finally {
       setIsProcessing(false);
     }
   };
 
   return (
-    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="fade-in">
       <header className="view-header">
-        <div>
-          <h1>Extract Pages</h1>
-          <p>Create a new PDF containing only the specific pages you need.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          {file && <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}><FileUp size={18} /> Select New PDF</button>}
-          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }} style={{ display: 'none' }} accept={ACCEPTED_FILE_EXT} />
-        </div>
+        <h1>Extract pages</h1>
+        {file && (
+          <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
+            <FileUp size={15} /> Add PDF
+          </button>
+        )}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }}
+          style={{ display: 'none' }}
+          accept={ACCEPTED_FILE_EXT}
+          multiple
+        />
       </header>
 
-      <div className="view-body" style={{ flex: 1, display: 'flex', gap: '1.5rem', minHeight: 0 }}>
-        <div style={{ width: '360px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto' }}>
-          {!file && <FileUploader onFilesSelected={handleFilesSelected} />}
-          {file && (
-            <div className="card glass">
-              <h3 style={{ fontSize: '1rem', marginBottom: '1.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</h3>
-              <div style={{ marginBottom: '1.25rem' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Page Numbers (e.g. 1, 2, 5)</label>
-                <input type="text" value={pages} onChange={e => setPages(e.target.value)} placeholder="e.g. 1, 3, 4"
-                  style={{ width: '100%', padding: '0.625rem', borderRadius: '0.5rem', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }} />
-              </div>
-              <button className="btn btn-primary" onClick={extractPages} disabled={isProcessing || !pages} style={{ width: '100%' }}>
-                {isProcessing ? 'Extracting...' : 'Extract Pages'}
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div style={{ flex: 1, backgroundColor: 'var(--bg-secondary)', borderRadius: '1rem', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+      <div className="workbench">
+        <div className="stage">
           {sourceBytes ? (
             <PdfPreviewer pdfBytes={sourceBytes} />
           ) : (
-            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', flexDirection: 'column', gap: '1rem' }}>
-              <Eye size={48} opacity={0.2} /><p>Select a PDF to see the preview</p>
-            </div>
-          )}
-          {extractedUrl && (
-            <div style={{ position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
-              <button className="btn btn-primary" onClick={() => { const a = document.createElement('a'); a.href = extractedUrl!; a.download = 'extracted_pages.pdf'; a.click(); }} style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-                <Download size={18} /> Download Extracted PDF
-              </button>
-            </div>
+            <EmptyStage
+              motif="extract"
+              headline={"Pull out specific pages"}
+              onFilesSelected={handleFilesSelected}
+            />
           )}
         </div>
+
+        <aside className="inspector">
+          <div className="inspector-body">
+            {file && (
+              <>
+                <div className="inspector-group">
+                  <div className="t-eyebrow">Document</div>
+                  <div className="file-name" title={file.name}>{file.name}</div>
+                </div>
+
+                <div className="field">
+                  <label htmlFor="extract-pages">Pages to keep</label>
+                  <input
+                    id="extract-pages"
+                    type="text"
+                    className="input input-mono"
+                    value={pages}
+                    onChange={e => setPages(e.target.value)}
+                    placeholder="1, 3, 5"
+                  />
+                  <p className="hint">Separate page numbers with commas.</p>
+                </div>
+
+                {error && <StatusBanner type="error" message={error} />}
+              </>
+            )}
+          </div>
+
+          {file && (
+            <div className="inspector-action">
+              <button
+                className="btn btn-primary btn-block"
+                onClick={extractPages}
+                disabled={isProcessing || !pages}
+              >
+                {isProcessing ? 'Extracting…' : 'Extract pages'}
+              </button>
+              {extractedUrl && (
+                <button
+                  className="btn btn-secondary btn-block"
+                  onClick={() => { const a = document.createElement('a'); a.href = extractedUrl!; a.download = 'extracted_pages.pdf'; a.click(); }}
+                >
+                  <Download size={15} /> Save extracted PDF
+                </button>
+              )}
+            </div>
+          )}
+        </aside>
       </div>
     </div>
   );

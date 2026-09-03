@@ -1,13 +1,15 @@
 import { useState, useRef } from 'react';
 import { PDFDocument } from 'pdf-lib';
-import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
-import { Download, Minimize2, Eye, Zap, RefreshCw, FileUp } from 'lucide-react';
+import EmptyStage from '../components/EmptyStage';
+import { Download, Zap, RefreshCw, FileUp } from 'lucide-react';
 import { useToolStore } from '../store/useToolStore';
+import { appendPdf } from '../utils/appendPdf';
 import { toPdfFile } from '../utils/fileConverter';
 
 export default function Compress() {
-  const { document: doc, setDocument } = useToolStore();
+  const { document: doc, setDocument, noteNextChange } = useToolStore();
   const { file, bytes: pdfBytes } = doc;
   const [originalSize, setOriginalSize] = useState(0);
   const [compressedUrl, setCompressedUrl] = useState<string | null>(null);
@@ -18,6 +20,20 @@ export default function Compress() {
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (!newFiles.length) return;
+
+    // Adding a file while one is open puts its pages on the end of the stack
+    // instead of discarding the document being worked on.
+    if (pdfBytes && pdfBytes.length && file) {
+      try {
+        const merged = await appendPdf(pdfBytes, newFiles);
+        noteNextChange('Added pages');
+        setDocument(new File([merged], file.name, { type: 'application/pdf' }), merged);
+        return;
+      } catch (err) {
+        console.error('Could not append to the open document', err);
+      }
+    }
+
     let f: File;
     try {
       f = await toPdfFile(newFiles[0]);
@@ -67,89 +83,133 @@ export default function Compress() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const modes = [
+    {
+      id: 'simple' as const,
+      label: 'Simple',
+      icon: Zap,
+      hint: 'Lossless structural cleanup. Fast, and safe for any document.',
+    },
+    {
+      id: 'aggressive' as const,
+      label: 'Aggressive',
+      icon: RefreshCw,
+      hint: 'Rebuilds the file to strip every unused object. Largest reduction.',
+    },
+  ];
+
+  const baseSize = originalSize || file?.size || 0;
+  const savedPct = compressedSize > 0 && baseSize
+    ? Math.round((1 - compressedSize / baseSize) * 100)
+    : 0;
+
   return (
-    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="fade-in">
       <header className="view-header">
-        <div>
-          <h1>Compress PDF</h1>
-          <p>Optimize your file for web delivery and email sharing without losing quality.</p>
-        </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          {file && (
-            <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
-              <FileUp size={18} /> Select New PDF
-            </button>
-          )}
-          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }} style={{ display: 'none' }} accept={ACCEPTED_FILE_EXT} />
-        </div>
+        <h1>Compress</h1>
+        {file && (
+          <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
+            <FileUp size={15} /> Add PDF
+          </button>
+        )}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }}
+          style={{ display: 'none' }}
+          accept={ACCEPTED_FILE_EXT}
+          multiple
+        />
       </header>
 
-      <div className="view-body" style={{ flex: 1, display: 'flex', gap: '1.5rem', minHeight: 0 }}>
-        <div style={{ width: '360px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto' }}>
-          {!file && <FileUploader onFilesSelected={handleFilesSelected} />}
-          {file && (
-            <>
-              <div className="card glass">
-                <h3 style={{ fontSize: '1rem', marginBottom: '1.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</h3>
-                <div style={{ marginBottom: '1.25rem' }}>
-                  <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Optimization Mode</label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {(['simple', 'aggressive'] as const).map(m => (
-                      <button key={m} onClick={() => setMode(m)} className={`btn ${mode === m ? 'btn-primary' : 'btn-secondary'}`}
-                        style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', padding: '1rem', height: 'auto', gap: '0.25rem', border: mode === m ? '1px solid var(--accent)' : '1px solid transparent' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', fontSize: '0.85rem' }}>
-                          {m === 'simple' ? <Zap size={14} /> : <RefreshCw size={14} />} {m === 'simple' ? 'Simple' : 'Aggressive'}
-                        </div>
-                        <div style={{ fontSize: '0.7rem', opacity: 0.7, fontWeight: 'normal', lineHeight: '1.2' }}>
-                          {m === 'simple' ? 'Lossless structural cleanup. Fast and safest for any document.' : 'Reconstructs file binary to strip all bloat. Maximum reduction.'}
-                        </div>
+      <div className="workbench">
+        <div className="stage">
+          {pdfBytes ? (
+            <PdfPreviewer pdfBytes={pdfBytes} />
+          ) : (
+            <EmptyStage
+              motif="compress"
+              headline={"Make a PDF smaller"}
+              onFilesSelected={handleFilesSelected}
+            />
+          )}
+        </div>
+
+        <aside className="inspector">
+          <div className="inspector-body">
+            {file && (
+              <>
+                <div className="inspector-group">
+                  <div className="t-eyebrow">Document</div>
+                  <div className="file-name" title={file.name}>{file.name}</div>
+                </div>
+
+                <div className="inspector-group">
+                  <div className="t-eyebrow">Mode</div>
+                  <div className="choice-list" role="radiogroup" aria-label="Compression mode">
+                    {modes.map(m => (
+                      <button
+                        key={m.id}
+                        role="radio"
+                        aria-checked={mode === m.id}
+                        onClick={() => setMode(m.id)}
+                        className={`choice ${mode === m.id ? 'selected' : ''}`}
+                      >
+                        <span className="choice-title"><m.icon size={14} /> {m.label}</span>
+                        <span className="choice-hint">{m.hint}</span>
                       </button>
                     ))}
                   </div>
                 </div>
-                <button className="btn btn-primary" onClick={compressPdf} disabled={isProcessing} style={{ width: '100%', height: '44px' }}>
-                  {isProcessing ? 'Optimizing...' : 'Start Optimization'}
-                </button>
-              </div>
-              <div className="card glass">
-                <h3 style={{ fontSize: '0.65rem', marginBottom: '1rem', color: 'var(--text-secondary)', letterSpacing: '0.1em' }}>FILE DETAILS</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Original:</span>
-                    <span>{formatSize(originalSize || file.size)}</span>
-                  </div>
-                  {compressedSize > 0 && (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--success)', fontSize: '0.85rem' }}>
-                        <span>Optimized:</span><span>{formatSize(compressedSize)}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '0.85rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
-                        <span>Saved:</span><span>{Math.round((1 - compressedSize / (originalSize || file.size)) * 100)}%</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
 
-        <div style={{ flex: 1, backgroundColor: 'var(--bg-secondary)', borderRadius: '1rem', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column' }}>
-          {pdfBytes ? (
-            <PdfPreviewer pdfBytes={pdfBytes} />
-          ) : (
-            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', flexDirection: 'column', gap: '1rem' }}>
-              <Eye size={48} opacity={0.2} /><p>Select a PDF to see the preview</p>
-            </div>
-          )}
-          {compressedUrl && (
-            <div style={{ position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
-              <button className="btn btn-primary" onClick={() => { const a = document.createElement('a'); a.href = compressedUrl!; a.download = `compressed_${file?.name || 'document.pdf'}`; a.click(); }} style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-                <Download size={18} /> Download Optimized PDF
+                <div className="inspector-group">
+                  <div className="t-eyebrow">Size</div>
+                  <dl className="readout">
+                    <div>
+                      <dt>Original</dt>
+                      <dd className="num">{formatSize(baseSize)}</dd>
+                    </div>
+                    {compressedSize > 0 && (
+                      <>
+                        <div>
+                          <dt>Compressed</dt>
+                          <dd className="num">{formatSize(compressedSize)}</dd>
+                        </div>
+                        <div className="readout-total">
+                          <dt>Saved</dt>
+                          <dd className="num" style={{ color: savedPct > 0 ? 'var(--ok)' : 'var(--text-dim)' }}>
+                            {savedPct}%
+                          </dd>
+                        </div>
+                      </>
+                    )}
+                  </dl>
+                </div>
+              </>
+            )}
+          </div>
+
+          {file && (
+            <div className="inspector-action">
+              <button className="btn btn-primary btn-block" onClick={compressPdf} disabled={isProcessing}>
+                {isProcessing ? 'Compressing…' : 'Compress'}
               </button>
+              {compressedUrl && (
+                <button
+                  className="btn btn-secondary btn-block"
+                  onClick={() => {
+                    const a = document.createElement('a');
+                    a.href = compressedUrl!;
+                    a.download = `compressed_${file?.name || 'document.pdf'}`;
+                    a.click();
+                  }}
+                >
+                  <Download size={15} /> Save compressed PDF
+                </button>
+              )}
             </div>
           )}
-        </div>
+        </aside>
       </div>
     </div>
   );

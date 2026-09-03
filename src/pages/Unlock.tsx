@@ -2,13 +2,15 @@ import { useState, useRef, useEffect } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import FileUploader, { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
+import EmptyStage from '../components/EmptyStage';
 import PasswordInput from '../components/PasswordInput';
 import StatusBanner from '../components/StatusBanner';
 import ProgressBar from '../components/ProgressBar';
-import { Download, Unlock as UnlockIcon, ShieldAlert, ShieldCheck, FileUp, CheckCircle2 } from 'lucide-react';
+import { Download, Unlock as UnlockIcon, ShieldAlert, ShieldCheck, FileUp } from 'lucide-react';
 import { useToolStore } from '../store/useToolStore';
+import { appendPdf } from '../utils/appendPdf';
 import { toPdfFile } from '../utils/fileConverter';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -27,7 +29,7 @@ async function renderPageToJpeg(page: pdfjsLib.PDFPageProxy, scale = 2.0) {
 }
 
 export default function Unlock() {
-  const { document: doc, setDocument } = useToolStore();
+  const { document: doc, setDocument, noteNextChange } = useToolStore();
   const { file, bytes: pdfBytes } = doc;
   const [password, setPassword] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -55,6 +57,20 @@ export default function Unlock() {
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (!newFiles.length) return;
+
+    // Adding a file while one is open puts its pages on the end of the stack
+    // instead of discarding the document being worked on.
+    if (pdfBytes && pdfBytes.length && file) {
+      try {
+        const merged = await appendPdf(pdfBytes, newFiles);
+        noteNextChange('Added pages');
+        setDocument(new File([merged], file.name, { type: 'application/pdf' }), merged);
+        return;
+      } catch (err) {
+        console.error('Could not append to the open document', err);
+      }
+    }
+
     let f: File;
     try {
       f = await toPdfFile(newFiles[0]);
@@ -75,7 +91,7 @@ export default function Unlock() {
       try {
         pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes.slice(0), password }).promise;
       } catch (e: any) {
-        if (e?.name === 'PasswordException') { setError('Incorrect password. Please try again.'); return; }
+        if (e?.name === 'PasswordException') { setError('That password did not work. Try again.'); return; }
         throw e;
       }
       const n = pdfDoc.numPages;
@@ -99,76 +115,109 @@ export default function Unlock() {
       // can continue on it directly instead of the still-encrypted original.
       setDocument(new File([resultBytes], file.name, { type: 'application/pdf' }), resultBytes);
     } catch {
-      setError('Failed to unlock PDF. The file may be unsupported or corrupted.');
+      setError('Could not unlock this PDF. It may be damaged or in an unsupported format.');
     } finally {
       setIsProcessing(false);
     }
   };
 
   return (
-    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="fade-in">
       <header className="view-header">
-        <div><h1>Unlock PDF</h1><p>Remove password protection and export an unrestricted copy.</p></div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          {file && <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}><FileUp size={18} /> Select New PDF</button>}
-          <input type="file" ref={fileInputRef} onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }} style={{ display: 'none' }} accept={ACCEPTED_FILE_EXT} />
-        </div>
+        <h1>Unlock</h1>
+        {file && (
+          <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
+            <FileUp size={15} /> Add PDF
+          </button>
+        )}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }}
+          style={{ display: 'none' }}
+          accept={ACCEPTED_FILE_EXT}
+          multiple
+        />
       </header>
 
-      <div className="view-body" style={{ flex: 1, display: 'flex', gap: '1.5rem', minHeight: 0 }}>
-        <div style={{ width: '360px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {!file && <FileUploader onFilesSelected={handleFilesSelected} />}
-          {file && (
-            <div className="card glass" style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-              <h3 style={{ fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</h3>
-
-              {isEncrypted !== null && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: '0.5rem', background: isEncrypted ? 'rgba(208,167,0,0.08)' : 'rgba(34,197,94,0.08)', border: `1px solid ${isEncrypted ? 'rgba(208,167,0,0.25)' : 'rgba(34,197,94,0.25)'}` }}>
-                  {isEncrypted
-                    ? <><ShieldAlert size={14} color="#d0a700" /><span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Password protected</span></>
-                    : <><ShieldCheck size={14} color="#22c55e" /><span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>No encryption detected</span></>}
-                </div>
-              )}
-
-              {isEncrypted && (
-                <PasswordInput label="Current Password" value={password} placeholder="Enter the PDF password…"
-                  onChange={v => { setPassword(v); setError(null); setSuccess(false); setUnlockedUrl(null); }}
-                  onKeyDown={e => e.key === 'Enter' && password && !isProcessing && unlockPdf()} />
-              )}
-
-              {isProcessing && <ProgressBar value={progress} label="Decrypting pages…" detail={`${currentPage} / ${totalPages}`} />}
-              {error && <StatusBanner type="error" message={error} />}
-              {success && <StatusBanner type="success" message="PDF unlocked successfully!" />}
-
-              {isEncrypted && (
-                <button className="btn btn-primary" onClick={unlockPdf} disabled={isProcessing || !password} style={{ width: '100%' }}>
-                  {isProcessing
-                    ? <><span className="spin" style={{ display: 'inline-block', width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%' }} /> Unlocking…</>
-                    : <><UnlockIcon size={16} /> Remove Protection</>}
-                </button>
-              )}
-              {isEncrypted === false && <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>This PDF has no password protection.</p>}
-            </div>
-          )}
-        </div>
-
-        <div style={{ flex: 1, backgroundColor: 'var(--bg-secondary)', borderRadius: '1rem', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+      <div className="workbench">
+        <div className="stage">
           {unlockedBytes ? <PdfPreviewer pdfBytes={unlockedBytes} />
             : pdfBytes && pdfBytes.length && !isEncrypted ? <PdfPreviewer pdfBytes={pdfBytes} />
             : (
-              <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', gap: '1rem' }}>
-                <ShieldAlert size={48} opacity={0.2} />
-                <p style={{ opacity: 0.5 }}>{file ? 'Preview restricted until unlocked' : 'Select a protected PDF to begin'}</p>
-              </div>
+              <EmptyStage
+                motif="unlock"
+                headline={"Remove a password"}
+                onFilesSelected={handleFilesSelected}
+              />
             )}
-          {unlockedUrl && (
-            <div style={{ position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
-              <button className="btn btn-primary" onClick={() => { const a = document.createElement('a'); a.href = unlockedUrl!; a.download = unlockedName; a.click(); }} style={{ boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
-                <Download size={18} /> Download Unlocked PDF
+        </div>
+
+        <aside className="inspector">
+          <div className="inspector-body">
+            {file && (
+              <>
+                <div className="inspector-group">
+                  <div className="t-eyebrow">Document</div>
+                  <div className="file-name" title={file.name}>{file.name}</div>
+                </div>
+
+                {isEncrypted !== null && (
+                  <div className={`note ${isEncrypted ? '' : 'note-ok'}`}>
+                    {isEncrypted
+                      ? <><ShieldAlert size={14} /><span>Password protected</span></>
+                      : <><ShieldCheck size={14} /><span>No password on this file</span></>}
+                  </div>
+                )}
+
+                {isEncrypted && (
+                  <div className="inspector-group">
+                    <div className="t-eyebrow">Password</div>
+                    <PasswordInput
+                      label="Current password"
+                      value={password}
+                      placeholder="Enter the PDF password"
+                      onChange={v => { setPassword(v); setError(null); setSuccess(false); setUnlockedUrl(null); }}
+                      onKeyDown={e => e.key === 'Enter' && password && !isProcessing && unlockPdf()}
+                    />
+                  </div>
+                )}
+
+                {isProcessing && (
+                  <ProgressBar value={progress} label="Unlocking pages" detail={`${currentPage} / ${totalPages}`} />
+                )}
+                {error && <StatusBanner type="error" message={error} />}
+                {success && <StatusBanner type="success" message="Unlocked. Save the file below." />}
+
+                {isEncrypted === false && (
+                  <p className="hint">This PDF is not protected, so there is nothing to remove.</p>
+                )}
+              </>
+            )}
+          </div>
+
+          {file && isEncrypted && (
+            <div className="inspector-action">
+              <button
+                className="btn btn-primary btn-block"
+                onClick={unlockPdf}
+                disabled={isProcessing || !password}
+              >
+                {isProcessing
+                  ? <><span className="spinner" /> Unlocking…</>
+                  : <><UnlockIcon size={15} /> Unlock</>}
               </button>
+              {unlockedUrl && (
+                <button
+                  className="btn btn-secondary btn-block"
+                  onClick={() => { const a = document.createElement('a'); a.href = unlockedUrl!; a.download = unlockedName; a.click(); }}
+                >
+                  <Download size={15} /> Save unlocked PDF
+                </button>
+              )}
             </div>
           )}
-        </div>
+        </aside>
       </div>
     </div>
   );

@@ -16,7 +16,15 @@ export default function ProgressBar({ value, label, detail }: Props) {
           {detail && <span>{detail}</span>}
         </div>
       )}
-      <div className="progress-track">
+      <div
+        className="progress-track"
+        role="progressbar"
+        aria-valuenow={Math.round(clamped)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={label}
+        aria-valuetext={detail ? `${Math.round(clamped)}% — ${detail}` : undefined}
+      >
         <div className="progress-fill" style={{ width: `${clamped}%` }} />
       </div>
     </div>

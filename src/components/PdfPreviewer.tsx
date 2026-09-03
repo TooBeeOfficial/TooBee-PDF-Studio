@@ -3,6 +3,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { FileText, ZoomIn, ZoomOut } from 'lucide-react';
 import './PdfPreviewer.css';
+import { usePreviewShortcuts } from '../hooks/usePreviewShortcuts';
+import ValueInput from './ValueInput';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -33,6 +35,10 @@ function PdfPage({ pageInfo, pdfDoc, zoom }: PageProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const lastRenderedZoom = useRef<number>(0);
   const [loading, setLoading] = useState(true);
+  // The zoom the bitmap currently on screen was rendered at. Until a new render
+  // lands, that bitmap is CSS-scaled to the requested zoom so the page resizes
+  // on the same frame as the container and never exposes the white backing.
+  const [shownZoom, setShownZoom] = useState(0);
 
   const renderPage = useCallback(async () => {
     // Only re-render if zoom has significantly changed or never rendered
@@ -48,17 +54,23 @@ function PdfPage({ pageInfo, pdfDoc, zoom }: PageProps) {
       // Multiply base scale by current zoom and DPI
       const viewport = page.getViewport({ scale: BASE_RENDER_SCALE * zoom * dpi });
 
-      // Physical pixel size
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      // CSS display size
-      canvas.style.width = `${pageInfo.cssWidth * zoom}px`;
-      canvas.style.height = `${pageInfo.cssHeight * zoom}px`;
+      // Draw into a detached canvas first. The visible one keeps the previous
+      // page until the new one is complete, so it is never blank.
+      const off = document.createElement('canvas');
+      off.width = viewport.width;
+      off.height = viewport.height;
+      const offCtx = off.getContext('2d');
+      if (!offCtx) return;
 
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      await page.render({ canvasContext: offCtx, viewport }).promise;
 
-      await page.render({ canvasContext: ctx, viewport }).promise;
+      const target = canvasRef.current;
+      if (!target) return;
+      target.width = off.width;
+      target.height = off.height;
+      target.getContext('2d')?.drawImage(off, 0, 0);
+
+      setShownZoom(zoom);
       setLoading(false);
     } catch (e) {
       console.error(`Failed to render page ${pageInfo.num}`, e);
@@ -105,7 +117,6 @@ function PdfPage({ pageInfo, pdfDoc, zoom }: PageProps) {
         borderRadius: '3px',
         overflow: 'hidden',
         flexShrink: 0,
-        transition: 'width 0.1s ease-out, height 0.1s ease-out',
       }}
     >
       {loading && (
@@ -114,12 +125,23 @@ function PdfPage({ pageInfo, pdfDoc, zoom }: PageProps) {
         </div>
       )}
 
-      <canvas
-        ref={canvasRef}
-        style={{
-          display: 'block',
-        }}
-      />
+      <div
+        style={shownZoom > 0 ? {
+          width: pageInfo.cssWidth * shownZoom,
+          height: pageInfo.cssHeight * shownZoom,
+          transform: `scale(${zoom / shownZoom})`,
+          transformOrigin: '0 0',
+        } : { width: '100%', height: '100%' }}
+      >
+        <canvas
+          ref={canvasRef}
+          style={{
+            display: 'block',
+            width: '100%',
+            height: '100%',
+          }}
+        />
+      </div>
 
       {!loading && (
         <div
@@ -146,7 +168,7 @@ export default function PdfPreviewer({ pdfBytes }: Props) {
   const [pages, setPages] = useState<PageInfo[]>([]);
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(1.5);
+  const [zoom, setZoom] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -202,13 +224,12 @@ export default function PdfPreviewer({ pdfBytes }: Props) {
     return () => { cancelled = true; };
   }, [pdfBytes]);
 
-  const handleWheel = (e: React.WheelEvent) => {
-    if (e.ctrlKey) {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      setZoom(prev => Math.min(4, Math.max(0.25, prev + delta)));
-    }
-  };
+  // Shift+wheel and Ctrl+wheel to zoom, plus Ctrl +/-/0, shared with the other
+  // preview surfaces so the gestures are identical everywhere.
+  const { onWheel: handleWheel } = usePreviewShortcuts({
+    enabled: !!pdfBytes,
+    zoom: { value: zoom, set: setZoom, min: 0.25, max: 4, step: 0.1, reset: 1 },
+  });
 
   if (!pdfBytes) {
     return (
@@ -273,7 +294,10 @@ export default function PdfPreviewer({ pdfBytes }: Props) {
         >
           <ZoomOut size={16} />
         </button>
-        <span style={{ fontSize: '0.75rem', color: 'white', minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{Math.round(zoom * 100)}%</span>
+        <ValueInput label="Zoom" suffix="%" min={25} max={400} step={10} width={54}
+          className="value-input-on-dark"
+          value={Math.round(zoom * 100)}
+          onCommit={v => setZoom(v / 100)} />
         <button 
           onClick={() => setZoom(prev => Math.min(4, prev + 0.2))}
           style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: zoom >= 4 ? 0.3 : 1 }}

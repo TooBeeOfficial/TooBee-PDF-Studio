@@ -4,12 +4,15 @@ import {
   LayoutGrid, FileStack, Scissors, Minimize2,
   RotateCw, Edit3, PenTool,
   Lock, FileOutput, Image, FolderDown, Settings,
+  Sun, Moon, Gauge, X,
   Unlock as UnlockIcon
 } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import SettingsModal from './components/SettingsModal';
 import { useToolStore } from './store/useToolStore';
+import { usePrefsStore, probePerformance } from './store/usePrefsStore';
+import DocumentLedger, { DocumentLedgerWatcher } from './components/DocumentLedger';
+import { useShortcuts } from './hooks/useShortcuts';
 
 import Home from './pages/Home';
 import Merge from './pages/Merge';
@@ -101,8 +104,10 @@ function OSIntegration() {
   return null;
 }
 
-function Sidebar({ theme, toggleTheme, onOpenSettings }: { theme: 'light' | 'dark', toggleTheme: () => void, onOpenSettings: () => void }) {
+function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
   const { t } = useTranslation();
+  const resolvedTheme = usePrefsStore(s => s.resolvedTheme);
+  const setTheme = usePrefsStore(s => s.setTheme);
 
   const navGroups = [
     {
@@ -157,7 +162,7 @@ function Sidebar({ theme, toggleTheme, onOpenSettings }: { theme: 'light' | 'dar
             <div className="nav-label">{group.label}</div>
             {group.items.map(item => (
                <NavLink key={item.path} to={item.path} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-                 <item.icon size={18} />
+                 <item.icon size={16} />
                  <span>{item.label}</span>
                </NavLink>
             ))}
@@ -165,26 +170,77 @@ function Sidebar({ theme, toggleTheme, onOpenSettings }: { theme: 'light' | 'dar
         ))}
       </nav>
 
-      <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)' }}>
-        <button className="btn btn-secondary" onClick={onOpenSettings} style={{ width: '100%', justifyContent: 'flex-start' }}>
-          <Settings size={18} />
+      <DocumentLedger />
+
+      <div className="rail-footer">
+        <button className="btn btn-ghost btn-block" onClick={onOpenSettings} style={{ justifyContent: 'flex-start' }}>
+          <Settings size={16} />
           <span>{t('sidebar.settings')}</span>
+        </button>
+        <button
+          className="btn btn-ghost btn-block"
+          onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+          style={{ justifyContent: 'flex-start' }}
+        >
+          {resolvedTheme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+          <span>{resolvedTheme === 'dark' ? t('settings.lightMode') : t('settings.darkMode')}</span>
         </button>
       </div>
     </aside>
   );
 }
 
+/**
+ * One-time offer of Light mode on a machine that looks weak. Only ever suggests —
+ * see probePerformance() for why this never applies itself.
+ */
+function PerfHint() {
+  const open = usePrefsStore(s => s.perfHintOpen);
+  const dismiss = usePrefsStore(s => s.dismissPerfHint);
+  const { t } = useTranslation();
+
+  if (!open) return null;
+
+  return (
+    <div className="perf-hint" role="status">
+      <Gauge size={16} />
+      <span>{t('perf.hint')}</span>
+      <button className="btn btn-primary btn-sm" onClick={() => dismiss(true)}>
+        {t('perf.switchToLight')}
+      </button>
+      <button className="btn btn-ghost btn-sm" onClick={() => dismiss(false)}>
+        {t('perf.keepFull')}
+      </button>
+      <button
+        className="btn btn-ghost btn-icon btn-sm"
+        onClick={() => dismiss(false)}
+        aria-label={t('perf.dismiss')}
+      >
+        <X size={14} />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Route transitions are a CSS crossfade, not a library. Keying the wrapper on the
+ * pathname remounts the subtree, which replays the `fadeIn` animation that every
+ * page root carries via `.fade-in`. Opacity only — the old x-slide fought the
+ * fixed rail and made the whole window twitch on every navigation. Under
+ * data-perf="minimal" and prefers-reduced-motion the animation is zeroed in CSS,
+ * so there is nothing to branch on here.
+ */
+/** Registers global shortcuts. Must sit inside <Router> to use navigate(). */
+function Shortcuts({ onOpenSettings }: { onOpenSettings: () => void }) {
+  useShortcuts(onOpenSettings);
+  return null;
+}
+
 function AnimatedRoutes() {
   const location = useLocation();
   return (
-    <AnimatePresence mode="wait">
-      <motion.div
+      <div
         key={location.pathname}
-        initial={{ opacity: 0, x: 10 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -10 }}
-        transition={{ duration: 0.2 }}
         style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
       >
         <Routes location={location}>
@@ -201,34 +257,33 @@ function AnimatedRoutes() {
           <Route path="/extract" element={<Extract />} />
           <Route path="/extract-folder" element={<ExtractToFolder />} />
         </Routes>
-      </motion.div>
-    </AnimatePresence>
+      </div>
   );
 }
 
 export default function App() {
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  // The theme and tier attributes are already on <html> from the inline script in
+  // index.html, so there is nothing to apply here — only the one-time probe.
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    probePerformance();
+  }, []);
 
   return (
     <Router>
       <OSIntegration />
+      <DocumentLedgerWatcher />
+      <Shortcuts onOpenSettings={() => setIsSettingsOpen(true)} />
       <div className="app-container">
-        <Sidebar theme={theme} toggleTheme={toggleTheme} onOpenSettings={() => setIsSettingsOpen(true)} />
+        <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
         <main className="main-content">
+          <PerfHint />
           <AnimatedRoutes />
         </main>
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
-          theme={theme}
-          toggleTheme={toggleTheme}
         />
       </div>
     </Router>
