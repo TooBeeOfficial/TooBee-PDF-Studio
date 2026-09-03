@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import './PasswordInput.css';
 
 interface Props {
@@ -13,8 +14,9 @@ interface Props {
 }
 
 export default function PasswordInput({
-  value, onChange, onKeyDown, label, placeholder = 'Enter password…', id, borderColor,
+  value, onChange, onKeyDown, label, placeholder, id, borderColor,
 }: Props) {
+  const { t } = useTranslation();
   const [show, setShow] = useState(false);
   return (
     <div className="pw-field">
@@ -26,7 +28,7 @@ export default function PasswordInput({
           value={value}
           onChange={e => onChange(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t('common.passwordPlaceholder')}
           className="pw-input"
           style={borderColor ? { borderColor } : undefined}
         />
@@ -34,7 +36,7 @@ export default function PasswordInput({
           type="button"
           className="pw-toggle"
           onClick={() => setShow(v => !v)}
-          aria-label={show ? 'Hide password' : 'Show password'}
+          aria-label={show ? t('common.hidePassword') : t('common.showPassword')}
         >
           {show ? <EyeOff size={16} /> : <Eye size={16} />}
         </button>

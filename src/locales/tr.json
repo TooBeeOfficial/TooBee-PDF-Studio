@@ -37,7 +37,7 @@
       "rotateDesc": "Sayfa düzenini yönetin ve döndürün.",
       "extractDesc": "Belirli sayfaları çıkarın.",
       "extractFolderDesc": "Her sayfayı kendi PDF'sine bölün ve ZIP olarak indirin.",
-      "protectDesc": "Belgenizi 128 bit RC4 şifresiyle şifreleyin.",
+      "protectDesc": "Belgenizi AES-256 şifresiyle şifreleyin.",
       "unlockDesc": "Şifre korumasını kaldırın ve özgürce dışa aktarın."
     },
     "headline": "Tüm PDF araçları, bu bilgisayarda.",
@@ -86,7 +86,10 @@
     "download": "İndir",
     "save": "Kaydet",
     "format": "Biçim",
-    "quality": "Kalite"
+    "quality": "Kalite",
+    "passwordPlaceholder": "Parolayı girin…",
+    "showPassword": "Parolayı göster",
+    "hidePassword": "Parolayı gizle"
   },
   "merge": {
     "title": "Dosyaları Birleştir",
@@ -96,6 +99,33 @@
     "preview": "Önizleme için dosya ekleyin",
     "downloadMerged": "Birleştirilmiş PDF'yi İndir",
     "fail": "Birleştirme başarısız oldu. Geçerli dosyalar olduğundan emin olun."
+  },
+  "protect": {
+    "errAlready": "Bu PDF zaten parola korumalı. Önce PDF Kilidini Aç ile parolayı kaldırın.",
+    "errPwChar": "Parola, PDF parolalarında kullanılamayan bir karakter içeriyor. Lütfen farklı bir parola seçin.",
+    "errPwUnstable": "Parola, PDF okuyucuların farklı şekilde yorumladığı bir karakter içeriyor; dosya bir daha açılmayabilir. Lütfen farklı bir parola seçin.",
+    "errPwBidi": "Parola, sağdan sola ve soldan sağa yazılan metinleri bir arada içeriyor; PDF standardı buna izin vermiyor. Lütfen tek bir yazı yönü kullanın.",
+    "errFail": "Bu PDF korunamadı. Dosya bozuk olabilir.",
+    "title": "Koru",
+    "addPdf": "PDF Ekle",
+    "emptyHeadline": "Parola ekleyin",
+    "eyebrowDocument": "Belge",
+    "eyebrowPassword": "Parola",
+    "newPassword": "Yeni parola",
+    "newPasswordPlaceholder": "Güçlü bir parola seçin",
+    "confirmPassword": "Parolayı doğrulayın",
+    "confirmPasswordPlaceholder": "Parolayı yeniden girin",
+    "mismatch": "İki parola eşleşmiyor.",
+    "match": "Parolalar eşleşiyor",
+    "note": "AES-256 ile şifrelenir.",
+    "successMsg": "Korundu. Dosyayı aşağıdan kaydedin.",
+    "protecting": "Korunuyor…",
+    "protectAction": "Koru",
+    "saveProtected": "Korunan PDF'yi kaydet",
+    "strengthWeak": "Zayıf",
+    "strengthMedium": "Orta",
+    "strengthStrong": "Güçlü",
+    "errUnsupported": "Bu dosya türü desteklenmiyor."
   },
   "perf": {
     "hint": "Bu bilgisayar Hafif modda daha iyi çalışabilir.",

@@ -37,7 +37,7 @@
       "rotateDesc": "ページのレイアウトを管理および回転します。",
       "extractDesc": "特定のページを抽出します。",
       "extractFolderDesc": "すべてのページを個別のPDFに分割し、ZIPとしてダウンロードします。",
-      "protectDesc": "128ビットRC4パスワードでドキュメントを暗号化します。",
+      "protectDesc": "AES-256パスワードでドキュメントを暗号化します。",
       "unlockDesc": "パスワード保護を解除して自由にエクスポートします。"
     },
     "headline": "すべてのPDFツールを、このパソコンだけで。",
@@ -86,7 +86,10 @@
     "download": "ダウンロード",
     "save": "保存",
     "format": "フォーマット",
-    "quality": "品質"
+    "quality": "品質",
+    "passwordPlaceholder": "パスワードを入力…",
+    "showPassword": "パスワードを表示",
+    "hidePassword": "パスワードを非表示"
   },
   "merge": {
     "title": "ファイルを結合",
@@ -96,6 +99,33 @@
     "preview": "ファイルを追加してプレビューを表示",
     "downloadMerged": "結合されたPDFをダウンロード",
     "fail": "ファイルの結合に失敗しました。有効なファイルであることを確認してください。"
+  },
+  "protect": {
+    "errAlready": "この PDF にはすでにパスワードが設定されています。先に「PDFロック解除」で解除してください。",
+    "errPwChar": "パスワードに PDF のパスワードとして使用できない文字が含まれています。別のパスワードを入力してください。",
+    "errPwUnstable": "パスワードに、PDF リーダーによって扱いが異なる文字が含まれています。ファイルを再び開けなくなる可能性があるため、別のパスワードを入力してください。",
+    "errPwBidi": "パスワードに右から左に書く文字と左から右に書く文字が混在しています。PDF 規格では許可されていないため、どちらか一方の方向に統一してください。",
+    "errFail": "この PDF を保護できませんでした。ファイルが破損している可能性があります。",
+    "title": "保護",
+    "addPdf": "PDF を追加",
+    "emptyHeadline": "パスワードを設定",
+    "eyebrowDocument": "ドキュメント",
+    "eyebrowPassword": "パスワード",
+    "newPassword": "新しいパスワード",
+    "newPasswordPlaceholder": "強力なパスワードを入力",
+    "confirmPassword": "パスワードの確認",
+    "confirmPasswordPlaceholder": "パスワードを再入力",
+    "mismatch": "パスワードが一致しません。",
+    "match": "パスワードが一致しました",
+    "note": "AES-256 で暗号化されます。",
+    "successMsg": "保護しました。下のボタンから保存してください。",
+    "protecting": "保護しています…",
+    "protectAction": "保護する",
+    "saveProtected": "保護した PDF を保存",
+    "strengthWeak": "弱い",
+    "strengthMedium": "普通",
+    "strengthStrong": "強い",
+    "errUnsupported": "このファイル形式には対応していません。"
   },
   "perf": {
     "hint": "このパソコンは軽量モードの方が快適に動作する可能性があります。",

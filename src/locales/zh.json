@@ -37,7 +37,7 @@
       "rotateDesc": "管理和旋转页面布局。",
       "extractDesc": "提取特定页面。",
       "extractFolderDesc": "将每一页拆分为其自己的 PDF 并作为 ZIP 下载。",
-      "protectDesc": "使用 128 位 RC4 密码加密您的文档。",
+      "protectDesc": "使用 AES-256 密码加密您的文档。",
       "unlockDesc": "删除密码保护并自由导出。"
     },
     "headline": "所有 PDF 工具，都在这台电脑上。",
@@ -86,7 +86,10 @@
     "download": "下载",
     "save": "保存",
     "format": "格式",
-    "quality": "质量"
+    "quality": "质量",
+    "passwordPlaceholder": "请输入密码…",
+    "showPassword": "显示密码",
+    "hidePassword": "隐藏密码"
   },
   "merge": {
     "title": "合并文件",
@@ -96,6 +99,33 @@
     "preview": "添加文件以查看预览",
     "downloadMerged": "下载合并的 PDF",
     "fail": "无法合并文件。请确保它们有效。"
+  },
+  "protect": {
+    "errAlready": "此 PDF 已设置密码。请先使用“解锁 PDF”移除密码。",
+    "errPwChar": "密码中包含 PDF 密码不支持的字符。请更换密码。",
+    "errPwUnstable": "密码中包含各 PDF 阅读器处理方式不一致的字符，文件可能无法再次打开。请更换密码。",
+    "errPwBidi": "密码混用了从右到左和从左到右的文字，PDF 标准不允许这样做。请使用单一书写方向。",
+    "errFail": "无法保护此 PDF。文件可能已损坏。",
+    "title": "保护",
+    "addPdf": "添加 PDF",
+    "emptyHeadline": "添加密码",
+    "eyebrowDocument": "文档",
+    "eyebrowPassword": "密码",
+    "newPassword": "新密码",
+    "newPasswordPlaceholder": "请设置一个强密码",
+    "confirmPassword": "确认密码",
+    "confirmPasswordPlaceholder": "请再次输入密码",
+    "mismatch": "两次输入的密码不一致。",
+    "match": "密码一致",
+    "note": "使用 AES-256 加密。",
+    "successMsg": "已保护。请在下方保存文件。",
+    "protecting": "正在保护…",
+    "protectAction": "保护",
+    "saveProtected": "保存受保护的 PDF",
+    "strengthWeak": "弱",
+    "strengthMedium": "中",
+    "strengthStrong": "强",
+    "errUnsupported": "不支持该文件类型。"
   },
   "perf": {
     "hint": "此电脑在轻量模式下可能运行得更好。",

@@ -37,7 +37,7 @@
       "rotateDesc": "Manage and spin page layout.",
       "extractDesc": "Pull out specific pages.",
       "extractFolderDesc": "Split every page into its own PDF and download as a ZIP.",
-      "protectDesc": "Encrypt your document with a 128-bit RC4 password.",
+      "protectDesc": "Encrypt your document with an AES-256 password.",
       "unlockDesc": "Remove password protection and export freely."
     },
     "headline": "Every PDF tool, on this machine.",
@@ -86,7 +86,10 @@
     "download": "Download",
     "save": "Save",
     "format": "Format",
-    "quality": "Quality"
+    "quality": "Quality",
+    "passwordPlaceholder": "Enter password…",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "merge": {
     "title": "Merge Files",
@@ -96,6 +99,33 @@
     "preview": "Add files to see the preview",
     "downloadMerged": "Download Merged PDF",
     "fail": "Failed to merge files. Ensure they are valid."
+  },
+  "protect": {
+    "errAlready": "This PDF already has a password. Remove it with Unlock PDF first.",
+    "errPwChar": "That password contains a character that cannot be used in a PDF password. Please choose a different one.",
+    "errPwUnstable": "That password contains a character that PDF readers treat inconsistently, so the file might not open again. Please choose a different one.",
+    "errPwBidi": "That password mixes right-to-left and left-to-right text, which the PDF standard does not allow. Please use a single text direction.",
+    "errFail": "Could not protect this PDF. It may be damaged.",
+    "title": "Protect",
+    "addPdf": "Add PDF",
+    "emptyHeadline": "Add a password",
+    "eyebrowDocument": "Document",
+    "eyebrowPassword": "Password",
+    "newPassword": "New password",
+    "newPasswordPlaceholder": "Choose a strong password",
+    "confirmPassword": "Confirm password",
+    "confirmPasswordPlaceholder": "Re-enter the password",
+    "mismatch": "The two passwords do not match.",
+    "match": "Passwords match",
+    "note": "Encrypted with AES-256.",
+    "successMsg": "Protected. Save the file below.",
+    "protecting": "Protecting…",
+    "protectAction": "Protect",
+    "saveProtected": "Save protected PDF",
+    "strengthWeak": "Weak",
+    "strengthMedium": "Medium",
+    "strengthStrong": "Strong",
+    "errUnsupported": "That file type is not supported."
   },
   "perf": {
     "hint": "This machine may run better in Light mode.",

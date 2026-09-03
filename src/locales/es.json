@@ -37,7 +37,7 @@
       "rotateDesc": "Gestiona y rota el diseño de las páginas.",
       "extractDesc": "Extrae páginas específicas.",
       "extractFolderDesc": "Divide cada página en su propio PDF y descárgalo como ZIP.",
-      "protectDesc": "Cifra tu documento con una contraseña RC4 de 128 bits.",
+      "protectDesc": "Cifra tu documento con una contraseña AES-256.",
       "unlockDesc": "Elimina la protección con contraseña y exporta libremente."
     },
     "headline": "Todas las herramientas PDF, en este equipo.",
@@ -86,7 +86,10 @@
     "download": "Descargar",
     "save": "Guardar",
     "format": "Formato",
-    "quality": "Calidad"
+    "quality": "Calidad",
+    "passwordPlaceholder": "Introduce la contraseña…",
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña"
   },
   "merge": {
     "title": "Unir Archivos",
@@ -96,6 +99,33 @@
     "preview": "Añade archivos para ver la vista previa",
     "downloadMerged": "Descargar PDF Unido",
     "fail": "Error al unir los archivos. Asegúrate de que sean válidos."
+  },
+  "protect": {
+    "errAlready": "Este PDF ya tiene contraseña. Quítala primero con Desbloquear PDF.",
+    "errPwChar": "La contraseña contiene un carácter que no se puede usar en una contraseña de PDF. Elige otra.",
+    "errPwUnstable": "La contraseña contiene un carácter que los lectores de PDF interpretan de forma distinta, por lo que el archivo podría no volver a abrirse. Elige otra.",
+    "errPwBidi": "La contraseña mezcla texto de derecha a izquierda y de izquierda a derecha, algo que el estándar PDF no permite. Usa una sola dirección de texto.",
+    "errFail": "No se ha podido proteger este PDF. Puede estar dañado.",
+    "title": "Proteger",
+    "addPdf": "Añadir PDF",
+    "emptyHeadline": "Añade una contraseña",
+    "eyebrowDocument": "Documento",
+    "eyebrowPassword": "Contraseña",
+    "newPassword": "Nueva contraseña",
+    "newPasswordPlaceholder": "Elige una contraseña segura",
+    "confirmPassword": "Confirmar contraseña",
+    "confirmPasswordPlaceholder": "Vuelve a escribir la contraseña",
+    "mismatch": "Las dos contraseñas no coinciden.",
+    "match": "Las contraseñas coinciden",
+    "note": "Cifrado con AES-256.",
+    "successMsg": "Protegido. Guarda el archivo abajo.",
+    "protecting": "Protegiendo…",
+    "protectAction": "Proteger",
+    "saveProtected": "Guardar PDF protegido",
+    "strengthWeak": "Débil",
+    "strengthMedium": "Media",
+    "strengthStrong": "Fuerte",
+    "errUnsupported": "Ese tipo de archivo no es compatible."
   },
   "perf": {
     "hint": "Este equipo puede funcionar mejor en modo Ligero.",

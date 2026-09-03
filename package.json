@@ -90,7 +90,7 @@
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",
-    "@pdfsmaller/pdf-encrypt-lite": "^1.0.2",
+    "@pdfsmaller/pdf-encrypt": "^1.2.0",
     "framer-motion": "^11.3.30",
     "html2canvas": "^1.4.1",
     "i18next": "^26.0.8",
