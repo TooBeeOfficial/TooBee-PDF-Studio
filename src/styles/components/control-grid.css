@@ -1,0 +1,56 @@
+/* Icon toggle grids. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Small control grid (bold / italic / align …) ───────────────────────── */
+
+.control-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--s-1);
+}
+
+.control-grid .btn {
+  width: 100%;
+  padding: 0;
+}
+
+/* Signature name field previews the chosen typeface at a readable size. */
+.signature-preview {
+  height: 40px;
+  font-size: 17px;
+  text-align: center;
+}
+
+/* Layer rows double as selectors in the Studio Editor. */
+.queue-select {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-item.selected {
+  border-color: var(--amber);
+  background: var(--amber-wash);
+}
+
+.queue-item.selected .queue-select {
+  color: var(--amber-text);
+}
+
+/* Status line pinned under the font list, so the count is visible without
+   scrolling to the end of several hundred families. */
+.font-menu-note {
+  position: sticky;
+  bottom: 0;
+  padding: var(--s-2) var(--s-3);
+  font-size: 11px;
+  color: var(--text-faint);
+  background: var(--surface-raised);
+  border-top: 1px solid var(--line);
+}

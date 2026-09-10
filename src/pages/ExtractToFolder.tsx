@@ -1,12 +1,14 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useFileDrop } from '../hooks/useFileDrop';
 import { PDFDocument } from 'pdf-lib';
 import JSZip from 'jszip';
-import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import FileUploader from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
 import EmptyStage from '../components/EmptyStage';
 import StatusBanner from '../components/StatusBanner';
 import ProgressBar from '../components/ProgressBar';
-import { Download, FolderDown, FileUp, Layers } from 'lucide-react';
+import { Download, FolderDown, Layers } from 'lucide-react';
 import { useToolStore } from '../store/useToolStore';
 import { appendPdf } from '../utils/appendPdf';
 import { toPdfFile } from '../utils/fileConverter';
@@ -16,6 +18,8 @@ function zeroPad(n: number, total: number) {
 }
 
 export default function ExtractToFolder() {
+  const { t } = useTranslation();
+  const { dropProps, isDragging } = useFileDrop(files => handleFilesSelected(files));
   const { document: doc, setDocument, noteNextChange } = useToolStore();
   const { file, bytes: pdfBytes } = doc;
   const [totalPages, setTotalPages] = useState(0);
@@ -27,7 +31,6 @@ export default function ExtractToFolder() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [prefix, setPrefix] = useState('page');
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetOutput = () => { setZipUrl(null); setError(null); setSuccess(false); setProgress(0); setCurrentPage(0); };
 
@@ -39,7 +42,7 @@ export default function ExtractToFolder() {
     if (pdfBytes && pdfBytes.length && file) {
       try {
         const merged = await appendPdf(pdfBytes, newFiles);
-        noteNextChange('Added pages');
+        noteNextChange(t('common.addedPages'));
         setDocument(new File([merged], file.name, { type: 'application/pdf' }), merged);
         return;
       } catch (err) {
@@ -51,7 +54,7 @@ export default function ExtractToFolder() {
     try {
       f = await toPdfFile(newFiles[0]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unsupported file type.');
+      setError(e instanceof Error ? e.message : t('common.errUnsupported'));
       return;
     }
     const bytes = new Uint8Array(await f.arrayBuffer());
@@ -61,7 +64,7 @@ export default function ExtractToFolder() {
       const pdfDoc = await PDFDocument.load(bytes.slice(0));
       setTotalPages(pdfDoc.getPageCount());
     } catch {
-      setError('Could not read this PDF. It may be encrypted or corrupted.');
+      setError(t('extractFolder.errRead'));
     }
   };
 
@@ -94,22 +97,9 @@ export default function ExtractToFolder() {
   };
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" {...dropProps}>
       <header className="view-header">
-        <h1>Extract to folder</h1>
-        {file && (
-          <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
-            <FileUp size={15} /> Add PDF
-          </button>
-        )}
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }}
-          style={{ display: 'none' }}
-          accept={ACCEPTED_FILE_EXT}
-          multiple
-        />
+        <h1>{t('extractFolder.title')}</h1>
       </header>
 
       <div className="workbench">
@@ -119,7 +109,7 @@ export default function ExtractToFolder() {
           ) : (
             <EmptyStage
               motif="extract"
-              headline={"Split into one file per page"}
+              headline={t('extractFolder.emptyHeadline')}
               onFilesSelected={handleFilesSelected}
             />
           )}
@@ -127,13 +117,14 @@ export default function ExtractToFolder() {
 
         <aside className="inspector">
           <div className="inspector-body">
+            <div className="inspector-group">
+              <div className="t-eyebrow">{t('common.document')}</div>
+              {file && <div className="file-name" title={file.name}>{file.name}</div>}
+              <FileUploader onFilesSelected={handleFilesSelected} multiple />
+            </div>
+
             {file && (
               <>
-                <div className="inspector-group">
-                  <div className="t-eyebrow">Document</div>
-                  <div className="file-name" title={file.name}>{file.name}</div>
-                </div>
-
                 {totalPages > 0 && (
                   <div className="note">
                     <Layers size={14} />
@@ -145,14 +136,14 @@ export default function ExtractToFolder() {
                 )}
 
                 <div className="field">
-                  <label htmlFor="etf-prefix">File name prefix</label>
+                  <label htmlFor="etf-prefix">{t('extractFolder.prefix')}</label>
                   <input
                     id="etf-prefix"
                     type="text"
                     className="input"
                     value={prefix}
                     onChange={e => setPrefix(e.target.value.replace(/[^a-zA-Z0-9_-]/g, '') || 'page')}
-                    placeholder="page"
+                    placeholder={t('extractFolder.prefixPlaceholder')}
                   />
                   {totalPages > 0 && (
                     <p className="hint mono-hint">
@@ -162,7 +153,7 @@ export default function ExtractToFolder() {
                 </div>
 
                 <div className="inspector-group">
-                  <div className="t-eyebrow">Saves as</div>
+                  <div className="t-eyebrow">{t('extractFolder.savesAs')}</div>
                   <div className="note">
                     <FolderDown size={14} />
                     <span className="mono-hint truncate">{file.name.replace(/\.pdf$/i, '')}_pages.zip</span>
@@ -170,7 +161,7 @@ export default function ExtractToFolder() {
                 </div>
 
                 {isProcessing && (
-                  <ProgressBar value={progress} label="Splitting pages" detail={`${currentPage} / ${totalPages}`} />
+                  <ProgressBar value={progress} label={t('extractFolder.splitting')} detail={`${currentPage} / ${totalPages}`} />
                 )}
                 {error && <StatusBanner type="error" message={error} />}
                 {success && <StatusBanner type="success" message={`${totalPages} pages extracted.`} />}
@@ -186,21 +177,26 @@ export default function ExtractToFolder() {
                 disabled={isProcessing || totalPages === 0}
               >
                 {isProcessing
-                  ? <><span className="spinner" /> Extracting <span className="num">{currentPage}/{totalPages}</span>…</>
-                  : <><FolderDown size={15} /> {success ? 'Extract again' : 'Extract all pages'}</>}
+                  ? <><span className="spinner" /> {t('extractFolder.extractingLabel')} <span className="num">{currentPage}/{totalPages}</span>…</>
+                  : <><FolderDown size={15} /> {success ? t('extractFolder.again') : t('extractFolder.extractAll')}</>}
               </button>
               {zipUrl && (
                 <button
                   className="btn btn-secondary btn-block"
                   onClick={() => { const a = document.createElement('a'); a.href = zipUrl!; a.download = zipName; a.click(); }}
                 >
-                  <Download size={15} /> Save ZIP
+                  <Download size={15} /> {t('extractFolder.saveZip')}
                 </button>
               )}
             </div>
           )}
         </aside>
       </div>
+      {isDragging && (
+        <div className="drop-veil">
+          <span>{t('common.dropToOpen')}</span>
+        </div>
+      )}
     </div>
   );
 }

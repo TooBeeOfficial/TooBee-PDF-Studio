@@ -1,0 +1,45 @@
+/* Misc helpers and utility classes. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Misc ───────────────────────────────────────────────────────────────── */
+
+.resize-handle {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  background-color: var(--amber);
+  border-radius: 50%;
+  cursor: nwse-resize;
+  border: 2px solid var(--surface-panel);
+  z-index: var(--z-stage-handle);
+  pointer-events: all;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ─── Utilities ──────────────────────────────────────────────────────────── */
+
+/* File paths and generated names read as data, so they set in mono. */
+.mono-hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}

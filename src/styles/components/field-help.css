@@ -1,0 +1,14 @@
+/* Inline help affordances. Loaded from index.css — order matters, see the note there. */
+
+/* Marks a label that carries an explanation in its title attribute. The help
+   text is also rendered below the control, so this is a cue rather than the
+   only way to reach it. */
+.field-help {
+  margin-left: 4px;
+  vertical-align: -1px;
+  color: var(--text-faint);
+}
+
+.field > label[title] {
+  cursor: help;
+}

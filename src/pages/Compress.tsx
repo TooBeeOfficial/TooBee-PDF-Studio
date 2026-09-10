@@ -1,14 +1,18 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useFileDrop } from '../hooks/useFileDrop';
 import { PDFDocument } from 'pdf-lib';
-import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import FileUploader from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
 import EmptyStage from '../components/EmptyStage';
-import { Download, Zap, RefreshCw, FileUp } from 'lucide-react';
+import { Download, Zap, RefreshCw } from 'lucide-react';
 import { useToolStore } from '../store/useToolStore';
 import { appendPdf } from '../utils/appendPdf';
 import { toPdfFile } from '../utils/fileConverter';
 
 export default function Compress() {
+  const { t } = useTranslation();
+  const { dropProps, isDragging } = useFileDrop(files => handleFilesSelected(files));
   const { document: doc, setDocument, noteNextChange } = useToolStore();
   const { file, bytes: pdfBytes } = doc;
   const [originalSize, setOriginalSize] = useState(0);
@@ -16,7 +20,6 @@ export default function Compress() {
   const [compressedSize, setCompressedSize] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [mode, setMode] = useState<'simple' | 'aggressive'>('aggressive');
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (!newFiles.length) return;
@@ -26,7 +29,7 @@ export default function Compress() {
     if (pdfBytes && pdfBytes.length && file) {
       try {
         const merged = await appendPdf(pdfBytes, newFiles);
-        noteNextChange('Added pages');
+        noteNextChange(t('common.addedPages'));
         setDocument(new File([merged], file.name, { type: 'application/pdf' }), merged);
         return;
       } catch (err) {
@@ -38,7 +41,7 @@ export default function Compress() {
     try {
       f = await toPdfFile(newFiles[0]);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Unsupported file type.');
+      alert(e instanceof Error ? e.message : t('common.errUnsupported'));
       return;
     }
     const bytes = new Uint8Array(await f.arrayBuffer());
@@ -70,7 +73,7 @@ export default function Compress() {
       // tools pick up the compressed version instead of the original.
       setDocument(new File([finalBytes], file.name, { type: 'application/pdf' }), finalBytes);
     } catch (e) {
-      console.error('Compression failed', e);
+      console.error(t('compress.errFailed'), e);
     } finally {
       setIsProcessing(false);
     }
@@ -86,15 +89,15 @@ export default function Compress() {
   const modes = [
     {
       id: 'simple' as const,
-      label: 'Simple',
+      label: t('compress.simple'),
       icon: Zap,
-      hint: 'Lossless structural cleanup. Fast, and safe for any document.',
+      hint: t('compress.simpleHint'),
     },
     {
       id: 'aggressive' as const,
-      label: 'Aggressive',
+      label: t('compress.aggressive'),
       icon: RefreshCw,
-      hint: 'Rebuilds the file to strip every unused object. Largest reduction.',
+      hint: t('compress.aggressiveHint'),
     },
   ];
 
@@ -104,22 +107,9 @@ export default function Compress() {
     : 0;
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" {...dropProps}>
       <header className="view-header">
-        <h1>Compress</h1>
-        {file && (
-          <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
-            <FileUp size={15} /> Add PDF
-          </button>
-        )}
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }}
-          style={{ display: 'none' }}
-          accept={ACCEPTED_FILE_EXT}
-          multiple
-        />
+        <h1>{t('compress.title')}</h1>
       </header>
 
       <div className="workbench">
@@ -129,7 +119,7 @@ export default function Compress() {
           ) : (
             <EmptyStage
               motif="compress"
-              headline={"Make a PDF smaller"}
+              headline={t('compress.emptyHeadline')}
               onFilesSelected={handleFilesSelected}
             />
           )}
@@ -137,16 +127,17 @@ export default function Compress() {
 
         <aside className="inspector">
           <div className="inspector-body">
+            <div className="inspector-group">
+              <div className="t-eyebrow">{t('common.document')}</div>
+              {file && <div className="file-name" title={file.name}>{file.name}</div>}
+              <FileUploader onFilesSelected={handleFilesSelected} multiple />
+            </div>
+
             {file && (
               <>
                 <div className="inspector-group">
-                  <div className="t-eyebrow">Document</div>
-                  <div className="file-name" title={file.name}>{file.name}</div>
-                </div>
-
-                <div className="inspector-group">
-                  <div className="t-eyebrow">Mode</div>
-                  <div className="choice-list" role="radiogroup" aria-label="Compression mode">
+                  <div className="t-eyebrow">{t('compress.mode')}</div>
+                  <div className="choice-list" role="radiogroup" aria-label={t('compress.modeAria')}>
                     {modes.map(m => (
                       <button
                         key={m.id}
@@ -163,20 +154,20 @@ export default function Compress() {
                 </div>
 
                 <div className="inspector-group">
-                  <div className="t-eyebrow">Size</div>
+                  <div className="t-eyebrow">{t('common.size')}</div>
                   <dl className="readout">
                     <div>
-                      <dt>Original</dt>
+                      <dt>{t('compress.original')}</dt>
                       <dd className="num">{formatSize(baseSize)}</dd>
                     </div>
                     {compressedSize > 0 && (
                       <>
                         <div>
-                          <dt>Compressed</dt>
+                          <dt>{t('compress.compressed')}</dt>
                           <dd className="num">{formatSize(compressedSize)}</dd>
                         </div>
                         <div className="readout-total">
-                          <dt>Saved</dt>
+                          <dt>{t('compress.savedLabel')}</dt>
                           <dd className="num" style={{ color: savedPct > 0 ? 'var(--ok)' : 'var(--text-dim)' }}>
                             {savedPct}%
                           </dd>
@@ -192,7 +183,7 @@ export default function Compress() {
           {file && (
             <div className="inspector-action">
               <button className="btn btn-primary btn-block" onClick={compressPdf} disabled={isProcessing}>
-                {isProcessing ? 'Compressing…' : 'Compress'}
+                {isProcessing ? t('compress.compressing') : t('compress.title')}
               </button>
               {compressedUrl && (
                 <button
@@ -204,13 +195,18 @@ export default function Compress() {
                     a.click();
                   }}
                 >
-                  <Download size={15} /> Save compressed PDF
+                  <Download size={15} /> {t('compress.download')}
                 </button>
               )}
             </div>
           )}
         </aside>
       </div>
+      {isDragging && (
+        <div className="drop-veil">
+          <span>{t('common.dropToOpen')}</span>
+        </div>
+      )}
     </div>
   );
 }

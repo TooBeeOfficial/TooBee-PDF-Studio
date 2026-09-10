@@ -1,16 +1,19 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useFileDrop } from '../hooks/useFileDrop';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import FileUploader from '../components/FileUploader';
 import EmptyStage from '../components/EmptyStage';
 import { appendPdf } from '../utils/appendPdf';
 import ValueInput from '../components/ValueInput';
+import AnchoredMenu from '../components/AnchoredMenu';
 import { toPdfFile } from '../utils/fileConverter';
 import { useToolStore } from '../store/useToolStore';
 import { useSystemFonts } from '../hooks/useSystemFonts';
-import { usePreviewShortcuts } from '../hooks/usePreviewShortcuts';
+import { usePreviewShortcuts, stepZoom } from '../hooks/usePreviewShortcuts';
 import { useFitOnLoad } from '../hooks/useFitOnLoad';
 import { SHAPES, shapeMeta, shapePath, type ShapeKind } from '../utils/shapes';
 import {
@@ -24,14 +27,13 @@ import {
   Italic,
   ZoomIn,
   ZoomOut,
-  FileUp,
   Underline as UnderlineIcon,
   Square,
   Search,
   Plus,
-  MousePointer2
+  MousePointer2,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -96,6 +98,12 @@ const SYSTEM_FONTS = [
 ];
 
 export default function Edit() {
+  const { t } = useTranslation();
+  const { dropProps, isDragging } = useFileDrop(files => {
+                setElements([]);
+                setCurrentPage(1);
+                handleFilesSelected(files);
+              });
   const { document: sharedDoc, setDocument, noteNextChange } = useToolStore();
   const { file, bytes: currentPdfBytes } = sharedDoc;
   const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
@@ -144,11 +152,12 @@ export default function Edit() {
   const fontInputRef = useRef<HTMLInputElement>(null);
   const [fontSearch, setFontSearch] = useState('Helvetica');
   const [showFontDropdown, setShowFontDropdown] = useState(false);
+  // The menu is portalled to <body>, so it is positioned from this row's rect.
+  const fontAnchorRef = useRef<HTMLDivElement>(null);
 
   const mainCanvasRef = useRef<HTMLCanvasElement>(null);
   const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
   const renderTaskRef = useRef<pdfjsLib.RenderTask | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const dragRef = useRef<{ id: string, type: 'move' | 'resize', startX: number, startY: number, initialX: number, initialY: number, initialW: number, initialH: number } | null>(null);
 
   const sel = elements.find(el => el.id === selectedId);
@@ -263,7 +272,7 @@ export default function Edit() {
     if (currentPdfBytes && currentPdfBytes.length && file) {
       try {
         const merged = await appendPdf(currentPdfBytes, files);
-        noteNextChange('Added pages');
+        noteNextChange(t('common.addedPages'));
         pdfDocRef.current = null;
         setDocument(new File([merged], file.name, { type: 'application/pdf' }), merged);
         return;
@@ -276,7 +285,7 @@ export default function Edit() {
     try {
       f = await toPdfFile(files[0]);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Unsupported file type.');
+      alert(e instanceof Error ? e.message : t('common.errUnsupported'));
       return;
     }
     const bytes = new Uint8Array(await f.arrayBuffer());
@@ -653,9 +662,9 @@ export default function Edit() {
   useEffect(() => { if (currentPdfBytes) renderPage(currentPage, visualScale); }, [currentPage, visualScale, renderPage]);
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" {...dropProps}>
       <header className="view-header">
-        <h1>Studio editor</h1>
+        <h1>{t('edit.title')}</h1>
       </header>
 
       <div className="workbench">
@@ -663,7 +672,7 @@ export default function Edit() {
           {!file ? (
             <EmptyStage
               motif="edit"
-              headline={"Add text to a page"}
+              headline={t('edit.emptyHeadline')}
               onFilesSelected={handleFilesSelected}
             />
           ) : (
@@ -706,7 +715,7 @@ export default function Edit() {
                         fontStyle: activeItalic ? 'italic' : 'normal',
                         textDecoration: activeUnderline ? 'underline' : 'none',
                         fontFamily: activeFontFamily,
-                        zIndex: 10
+                        zIndex: 'var(--z-stage-overlay)'
                       }}>
                         {activeText}
                       </div>
@@ -837,10 +846,10 @@ export default function Edit() {
                     Click the page to add points · <span className="num">{draftPath.length}</span> placed
                   </span>
                   <button className="btn btn-primary btn-sm" onClick={commitDraftPath} disabled={draftPath.length < 3}>
-                    Close shape
+                    {t('edit.closeShape')}
                   </button>
                   <button className="btn btn-ghost btn-sm" onClick={() => setDraftPath([])} disabled={!draftPath.length}>
-                    Clear
+                    {t('common.clear')}
                   </button>
                 </div>
               )}
@@ -853,7 +862,7 @@ export default function Edit() {
                       : `Click where the ${activeKind} ends.`}
                   </span>
                   <button className="btn btn-ghost btn-sm" onClick={() => setDraftPath([])} disabled={!draftPath.length}>
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </div>
               )}
@@ -861,11 +870,11 @@ export default function Edit() {
               {/* Page navigation belongs under the document it moves through. */}
               {numPages > 1 && (
                 <div className="page-nav">
-                  <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1}>Prev</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage <= 1}>{t('common.prev')}</button>
                   <span className="page-nav-label">
                     Page <span className="num">{currentPage}</span> of <span className="num">{numPages}</span>
                   </span>
-                  <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.min(numPages, p + 1))} disabled={currentPage >= numPages}>Next</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.min(numPages, p + 1))} disabled={currentPage >= numPages}>{t('common.next')}</button>
                 </div>
               )}
             </>
@@ -875,44 +884,32 @@ export default function Edit() {
         <aside className="inspector">
           <div className="inspector-body">
             <div className="inspector-group">
-              <div className="t-eyebrow">Document</div>
+              <div className="t-eyebrow">{t('common.document')}</div>
               {file && <div className="file-name" title={file.name}>{file.name}</div>}
               <div className="zoom-control">
-                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setVisualScale(s => Math.max(0.25, s - 0.2))} aria-label="Zoom out"><ZoomOut size={14} /></button>
-                <ValueInput label="Zoom" suffix="%" min={25} max={400} step={10} width={56}
+                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setVisualScale(s => stepZoom(s, -1))} aria-label={t('common.zoomOut')}><ZoomOut size={14} /></button>
+                <ValueInput label={t('common.zoom')} suffix="%" min={25} max={400} step={10} width={56}
                   value={Math.round(visualScale * 100)}
                   onCommit={v => setVisualScale(v / 100)} />
-                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setVisualScale(s => Math.min(4, s + 0.2))} aria-label="Zoom in"><ZoomIn size={14} /></button>
+                <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setVisualScale(s => stepZoom(s, 1))} aria-label={t('common.zoomIn')}><ZoomIn size={14} /></button>
               </div>
-              <button className="btn btn-secondary btn-block" onClick={() => fileInputRef.current?.click()}>
-                <FileUp size={15} /> Add PDF
-              </button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={(e) => {
-                  if (e.target.files?.length) {
-                    setElements([]);
-                    setCurrentPage(1);
-                    handleFilesSelected(Array.from(e.target.files));
-                  }
-                }}
-                style={{ display: 'none' }}
-                accept={ACCEPTED_FILE_EXT}
-                multiple
-              />
+              <FileUploader onFilesSelected={files => {
+                setElements([]);
+                setCurrentPage(1);
+                handleFilesSelected(files);
+              }} multiple />
             </div>
 
             <div className="inspector-group">
-              <div className="t-eyebrow">Tool</div>
-              <div className="shape-palette" role="radiogroup" aria-label="Shape tool">
+              <div className="t-eyebrow">{t('edit.tool')}</div>
+              <div className="shape-palette" role="radiogroup" aria-label={t('edit.shapeTool')}>
                 {SHAPES.map(sh => (
                   <button
                     key={sh.kind}
                     role="radio"
                     aria-checked={activeKind === sh.kind}
-                    title={sh.label}
-                    aria-label={sh.label}
+                    title={t(`shapes.${sh.kind}`)}
+                    aria-label={t(`shapes.${sh.kind}`)}
                     className={`shape-tool ${activeKind === sh.kind ? 'selected' : ''}`}
                     onClick={() => { setActiveKind(sh.kind); setDraftPath([]); }}
                   >
@@ -941,25 +938,25 @@ export default function Edit() {
               </div>
               <p className="hint">
                 {activeKind === 'select'
-                  ? 'Click a shape to select and edit it.'
+                  ? t('edit.hintShape')
                   : activeKind === 'path'
-                  ? 'Click the page to place points, then close the shape.'
-                  : `Click the page to place ${shapeMeta(activeKind).label.toLowerCase()}.`}
+                  ? t('edit.hintPoints')
+                  : t('edit.hintPlaceShape', { shape: t(`shapes.${activeKind}`).toLowerCase() })}
               </p>
             </div>
 
             {((activeKind !== 'text' && activeKind !== 'select') || (sel && sel.kind && sel.kind !== 'text')) && (
               <div className="inspector-group">
-                <div className="t-eyebrow">Shape</div>
+                <div className="t-eyebrow">{t('edit.shape')}</div>
 
                 <div className="field">
-                  <label>Stroke</label>
+                  <label>{t('edit.stroke')}</label>
                   <div className="swatch-row">
                     <span className="swatch-native">
                       <input type="color"
                         value={sel?.strokeColor ?? activeStrokeColor}
                         onChange={e => { const v = e.target.value; updateElement(sel?.id || '', { strokeColor: v }); setActiveStrokeColor(v); }}
-                        aria-label="Custom stroke colour" />
+                        aria-label={t('edit.strokeCustom')} />
                       <span style={{ background: sel?.strokeColor ?? activeStrokeColor }} />
                     </span>
                     <div className="swatches">
@@ -975,8 +972,8 @@ export default function Edit() {
 
                 <div className="field">
                   <div className="range-head">
-                    <label htmlFor="edit-stroke">Stroke width</label>
-                    <ValueInput label="Stroke width" min={0} max={40} width={52}
+                    <label htmlFor="edit-stroke">{t('edit.strokeWidth')}</label>
+                    <ValueInput label={t('edit.strokeWidth')} min={0} max={40} width={52}
                       value={sel?.strokeWidth ?? activeStrokeWidth}
                       onCommit={v => { updateElement(sel?.id || '', { strokeWidth: v }); setActiveStrokeWidth(v); }} />
                   </div>
@@ -987,8 +984,8 @@ export default function Edit() {
 
                 <div className="field">
                   <div className="range-head">
-                    <label htmlFor="edit-rotation">Rotation</label>
-                    <ValueInput label="Rotation" suffix="°" min={0} max={359} width={58}
+                    <label htmlFor="edit-rotation">{t('common.rotation')}</label>
+                    <ValueInput label={t('common.rotation')} suffix="°" min={0} max={359} width={58}
                       value={sel?.rotation ?? activeRotation}
                       onCommit={v => { updateElement(sel?.id || '', { rotation: v }); setActiveRotation(v); }} />
                   </div>
@@ -1011,8 +1008,8 @@ export default function Edit() {
                 {shapeMeta((sel?.kind ?? activeKind) as ShapeKind).hasPoints && (
                   <div className="field">
                     <div className="range-head">
-                      <label htmlFor="edit-points">Points</label>
-                      <ValueInput label="Points" min={3} max={12} width={52}
+                      <label htmlFor="edit-points">{t('edit.points')}</label>
+                      <ValueInput label={t('edit.points')} min={3} max={12} width={52}
                       value={sel?.points ?? activePoints}
                       onCommit={v => { updateElement(sel?.id || '', { points: Math.round(v) }); setActivePoints(Math.round(v)); }} />
                     </div>
@@ -1025,23 +1022,23 @@ export default function Edit() {
             )}
 
             <div className="inspector-group">
-              <div className="t-eyebrow">Text</div>
+              <div className="t-eyebrow">{t('edit.text')}</div>
 
               <div className="field">
-                <label htmlFor="edit-text">Content</label>
+                <label htmlFor="edit-text">{t('edit.content')}</label>
                 <textarea
                   id="edit-text"
                   className="input"
                   value={sel ? sel.text : activeText}
                   onChange={e => { const v = e.target.value; updateElement(sel?.id || '', { text: v }); setActiveText(v); }}
-                  placeholder="Enter text"
+                  placeholder={t('edit.enterText')}
                   style={{ height: 'auto', minHeight: '60px', padding: 'var(--s-2)', resize: 'vertical', lineHeight: 1.45 }}
                 />
               </div>
 
-              <div className="field" style={{ position: 'relative' }}>
-                <label htmlFor="edit-font">Typeface</label>
-                <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
+              <div className="field">
+                <label htmlFor="edit-font">{t('fonts.typeface')}</label>
+                <div ref={fontAnchorRef} style={{ display: 'flex', gap: 'var(--s-2)' }}>
                   <div className="input-with-icon">
                     <Search size={13} />
                     <input
@@ -1052,64 +1049,61 @@ export default function Edit() {
                       value={fontSearch}
                       onFocus={() => setShowFontDropdown(true)}
                       onChange={e => setFontSearch(e.target.value)}
-                      placeholder="Search fonts"
+                      placeholder={t('fonts.search')}
                     />
                   </div>
-                  <button className="btn btn-secondary btn-icon" onClick={() => fontInputRef.current?.click()} aria-label="Add a font file">
+                  <button className="btn btn-secondary btn-icon" onClick={() => fontInputRef.current?.click()} aria-label={t('fonts.add')}>
                     <Plus size={15} />
                   </button>
                   <input type="file" ref={fontInputRef} hidden accept=".ttf,.otf" onChange={handleFontUpload} />
                 </div>
-                <AnimatePresence>
-                  {showFontDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                      className="font-menu"
+                <AnchoredMenu
+                  open={showFontDropdown}
+                  anchor={fontAnchorRef.current}
+                  onClose={() => setShowFontDropdown(false)}
+                  className="font-menu"
+                >
+                  {filteredFonts.map(f => (
+                    <button
+                      key={f}
+                      type="button"
+                      className={`font-option ${(sel ? sel.fontFamily : activeFontFamily) === f ? 'selected' : ''}`}
+                      style={{ fontFamily: f }}
+                      onClick={() => { updateElement(sel?.id || '', { fontFamily: f }); setActiveFontFamily(f); setFontSearch(f); setShowFontDropdown(false); }}
                     >
-                      {filteredFonts.map(f => (
-                        <button
-                          key={f}
-                          type="button"
-                          className={`font-option ${(sel ? sel.fontFamily : activeFontFamily) === f ? 'selected' : ''}`}
-                          style={{ fontFamily: f }}
-                          onClick={() => { updateElement(sel?.id || '', { fontFamily: f }); setActiveFontFamily(f); setFontSearch(f); setShowFontDropdown(false); }}
-                        >
-                          {f}
-                        </button>
-                      ))}
-                      {fontStatus === 'loading' && (
-                        <p className="font-menu-note">Reading installed fonts…</p>
-                      )}
-                      {fontStatus === 'ready' && (
-                        <p className="font-menu-note">
-                          <span className="num">{systemFonts.length}</span> fonts installed on this machine
-                        </p>
-                      )}
-                      {(fontStatus === 'denied' || fontStatus === 'unavailable') && (
-                        <p className="font-menu-note">Installed fonts could not be read. Upload a font file with +.</p>
-                      )}
-                    </motion.div>
+                      {f}
+                    </button>
+                  ))}
+                  {fontStatus === 'loading' && (
+                    <p className="font-menu-note">{t('fonts.loading')}</p>
                   )}
-                </AnimatePresence>
-                {showFontDropdown && <div className="menu-scrim" onClick={() => setShowFontDropdown(false)} />}
+                  {fontStatus === 'ready' && (
+                    <p className="font-menu-note">
+                      <span className="num">{systemFonts.length}</span> fonts installed on this machine
+                    </p>
+                  )}
+                  {(fontStatus === 'denied' || fontStatus === 'unavailable') && (
+                    <p className="font-menu-note">{t('fonts.denied')}</p>
+                  )}
+                </AnchoredMenu>
               </div>
 
               <div className="field">
-                <label>Style</label>
+                <label>{t('edit.style')}</label>
                 <div className="control-grid">
-                  <button className={`btn btn-secondary btn-sm ${(sel ? sel.isBold : activeBold) ? 'active' : ''}`} aria-pressed={sel ? sel.isBold : activeBold} aria-label="Bold" onClick={() => { const v = !(sel ? sel.isBold : activeBold); setActiveBold(v); if (sel) updateElement(sel.id, { isBold: v }); }}><Bold size={13} /></button>
-                  <button className={`btn btn-secondary btn-sm ${(sel ? sel.isItalic : activeItalic) ? 'active' : ''}`} aria-pressed={sel ? sel.isItalic : activeItalic} aria-label="Italic" onClick={() => { const v = !(sel ? sel.isItalic : activeItalic); setActiveItalic(v); if (sel) updateElement(sel.id, { isItalic: v }); }}><Italic size={13} /></button>
-                  <button className={`btn btn-secondary btn-sm ${(sel ? sel.isUnderline : activeUnderline) ? 'active' : ''}`} aria-pressed={sel ? sel.isUnderline : activeUnderline} aria-label="Underline" onClick={() => { const v = !(sel ? sel.isUnderline : activeUnderline); setActiveUnderline(v); if (sel) updateElement(sel.id, { isUnderline: v }); }}><UnderlineIcon size={13} /></button>
-                  <button className={`btn btn-secondary btn-sm ${(sel ? sel.align === 'left' : activeAlign === 'left') ? 'active' : ''}`} aria-pressed={sel ? sel.align === 'left' : activeAlign === 'left'} aria-label="Align left" onClick={() => { setActiveAlign('left'); if (sel) updateElement(sel.id, { align: 'left' }); }}><AlignLeft size={13} /></button>
-                  <button className={`btn btn-secondary btn-sm ${(sel ? sel.align === 'center' : activeAlign === 'center') ? 'active' : ''}`} aria-pressed={sel ? sel.align === 'center' : activeAlign === 'center'} aria-label="Align centre" onClick={() => { setActiveAlign('center'); if (sel) updateElement(sel.id, { align: 'center' }); }}><AlignCenter size={13} /></button>
-                  <button className={`btn btn-secondary btn-sm ${(sel ? sel.align === 'right' : activeAlign === 'right') ? 'active' : ''}`} aria-pressed={sel ? sel.align === 'right' : activeAlign === 'right'} aria-label="Align right" onClick={() => { setActiveAlign('right'); if (sel) updateElement(sel.id, { align: 'right' }); }}><AlignRight size={13} /></button>
+                  <button className={`btn btn-secondary btn-sm ${(sel ? sel.isBold : activeBold) ? 'active' : ''}`} aria-pressed={sel ? sel.isBold : activeBold} aria-label={t('edit.bold')} onClick={() => { const v = !(sel ? sel.isBold : activeBold); setActiveBold(v); if (sel) updateElement(sel.id, { isBold: v }); }}><Bold size={13} /></button>
+                  <button className={`btn btn-secondary btn-sm ${(sel ? sel.isItalic : activeItalic) ? 'active' : ''}`} aria-pressed={sel ? sel.isItalic : activeItalic} aria-label={t('edit.italic')} onClick={() => { const v = !(sel ? sel.isItalic : activeItalic); setActiveItalic(v); if (sel) updateElement(sel.id, { isItalic: v }); }}><Italic size={13} /></button>
+                  <button className={`btn btn-secondary btn-sm ${(sel ? sel.isUnderline : activeUnderline) ? 'active' : ''}`} aria-pressed={sel ? sel.isUnderline : activeUnderline} aria-label={t('edit.underline')} onClick={() => { const v = !(sel ? sel.isUnderline : activeUnderline); setActiveUnderline(v); if (sel) updateElement(sel.id, { isUnderline: v }); }}><UnderlineIcon size={13} /></button>
+                  <button className={`btn btn-secondary btn-sm ${(sel ? sel.align === 'left' : activeAlign === 'left') ? 'active' : ''}`} aria-pressed={sel ? sel.align === 'left' : activeAlign === 'left'} aria-label={t('edit.alignLeft')} onClick={() => { setActiveAlign('left'); if (sel) updateElement(sel.id, { align: 'left' }); }}><AlignLeft size={13} /></button>
+                  <button className={`btn btn-secondary btn-sm ${(sel ? sel.align === 'center' : activeAlign === 'center') ? 'active' : ''}`} aria-pressed={sel ? sel.align === 'center' : activeAlign === 'center'} aria-label={t('edit.alignCentre')} onClick={() => { setActiveAlign('center'); if (sel) updateElement(sel.id, { align: 'center' }); }}><AlignCenter size={13} /></button>
+                  <button className={`btn btn-secondary btn-sm ${(sel ? sel.align === 'right' : activeAlign === 'right') ? 'active' : ''}`} aria-pressed={sel ? sel.align === 'right' : activeAlign === 'right'} aria-label={t('edit.alignRight')} onClick={() => { setActiveAlign('right'); if (sel) updateElement(sel.id, { align: 'right' }); }}><AlignRight size={13} /></button>
                 </div>
               </div>
 
               <div className="field">
                 <div className="range-head">
-                  <label htmlFor="edit-size">Size</label>
-                  <ValueInput label="Text size" suffix="px" min={4} max={400} width={58}
+                  <label htmlFor="edit-size">{t('common.size')}</label>
+                  <ValueInput label={t('edit.textSize')} suffix="px" min={4} max={400} width={58}
                       value={sel ? sel.fontSize : activeFontSize}
                       onCommit={v => { updateElement(sel?.id || '', { fontSize: v }); setActiveFontSize(v); }} />
                 </div>
@@ -1118,13 +1112,13 @@ export default function Edit() {
             </div>
 
             <div className="inspector-group">
-              <div className="t-eyebrow">Appearance</div>
+              <div className="t-eyebrow">{t('edit.appearance')}</div>
 
               <div className="field">
-                <label>Background</label>
+                <label>{t('edit.background')}</label>
                 <div className="swatch-row">
                   <span className="swatch-native">
-                    <input type="color" value={sel ? sel.color : activeBgColor} onChange={e => { const v = e.target.value; updateElement(sel?.id || '', { color: v }); setActiveBgColor(v); }} aria-label="Custom background colour" />
+                    <input type="color" value={sel ? sel.color : activeBgColor} onChange={e => { const v = e.target.value; updateElement(sel?.id || '', { color: v }); setActiveBgColor(v); }} aria-label={t('edit.backgroundCustom')} />
                     <span style={{ background: sel ? sel.color : activeBgColor }} />
                   </span>
                   <div className="swatches">
@@ -1138,10 +1132,10 @@ export default function Edit() {
               </div>
 
               <div className="field">
-                <label>Text colour</label>
+                <label>{t('edit.textColour')}</label>
                 <div className="swatch-row">
                   <span className="swatch-native">
-                    <input type="color" value={sel ? sel.textColor : activeTextColor} onChange={e => { const v = e.target.value; updateElement(sel?.id || '', { textColor: v }); setActiveTextColor(v); }} aria-label="Custom text colour" />
+                    <input type="color" value={sel ? sel.textColor : activeTextColor} onChange={e => { const v = e.target.value; updateElement(sel?.id || '', { textColor: v }); setActiveTextColor(v); }} aria-label={t('edit.textColourCustom')} />
                     <span style={{ background: sel ? sel.textColor : activeTextColor }} />
                   </span>
                   <div className="swatches">
@@ -1157,8 +1151,8 @@ export default function Edit() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s-3)' }}>
                 <div className="field">
                   <div className="range-head">
-                    <label htmlFor="edit-opacity">Opacity</label>
-                    <ValueInput label="Opacity" suffix="%" min={0} max={100} step={5} width={58}
+                    <label htmlFor="edit-opacity">{t('common.opacity')}</label>
+                    <ValueInput label={t('common.opacity')} suffix="%" min={0} max={100} step={5} width={58}
                       value={Math.round((sel ? sel.opacity : activeOpacity) * 100)}
                       onCommit={v => { const o = v / 100; updateElement(sel?.id || '', { opacity: o }); setActiveOpacity(o); }} />
                   </div>
@@ -1166,8 +1160,8 @@ export default function Edit() {
                 </div>
                 <div className="field">
                   <div className="range-head">
-                    <label htmlFor="edit-radius">Radius</label>
-                    <ValueInput label="Corner radius" min={0} max={200} width={52}
+                    <label htmlFor="edit-radius">{t('edit.radius')}</label>
+                    <ValueInput label={t('edit.radius')} min={0} max={200} width={52}
                       value={sel ? sel.borderRadius : activeBorderRadius}
                       onCommit={v => { updateElement(sel?.id || '', { borderRadius: v }); setActiveBorderRadius(v); }} />
                   </div>
@@ -1180,30 +1174,30 @@ export default function Edit() {
                 aria-pressed={sel ? sel.showBox : showBox}
                 onClick={() => { const v = !(sel ? sel.showBox : showBox); setShowBox(v); if (sel) updateElement(sel.id, { showBox: v }); }}
               >
-                <Square size={14} /> {(sel ? sel.showBox : showBox) ? 'Hide box' : 'Show box'}
+                <Square size={14} /> {(sel ? sel.showBox : showBox) ? t('edit.hideBox') : t('edit.showBox')}
               </button>
             </div>
 
             <div className="inspector-group">
               <div className="t-eyebrow">
-                Layers
+                {t('edit.layers')}
                 {elements.length > 0 && <span className="count num">{elements.length}</span>}
               </div>
               {elements.length === 0 ? (
-                <p className="hint">Click the page to add a text box.</p>
+                <p className="hint">{t('edit.emptyLayers')}</p>
               ) : (
                 <ul className="queue">
                   {elements.map(el => (
                     <li key={el.id} className={`queue-item ${selectedId === el.id ? 'selected' : ''}`}>
                       <button className="queue-name queue-select" onClick={() => setSelectedId(el.id)}>
                         {el.kind && el.kind !== 'text'
-                          ? shapeMeta(el.kind).label
-                          : (el.text || 'Empty text box')}
+                          ? t(`shapes.${el.kind}`)
+                          : (el.text || t('edit.emptyTextBox'))}
                       </button>
                       <button
                         className="btn btn-danger btn-icon btn-sm"
                         onClick={() => setElements(p => p.filter(x => x.id !== el.id))}
-                        aria-label="Delete layer"
+                        aria-label={t('edit.deleteLayer')}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -1217,20 +1211,25 @@ export default function Edit() {
           {file && (
             <div className="inspector-action">
               <button className="btn btn-primary btn-block" onClick={burnToPdf} disabled={isProcessing}>
-                <Save size={15} /> {isProcessing ? 'Applying…' : 'Apply changes'}
+                <Save size={15} /> {isProcessing ? t('common.applying') : t('edit.apply')}
               </button>
               {currentPdfUrl && (
                 <button
                   className="btn btn-secondary btn-block"
                   onClick={() => { const a = document.createElement('a'); a.href = currentPdfUrl; a.download = 'edited.pdf'; a.click(); }}
                 >
-                  <Download size={15} /> Save edited PDF
+                  <Download size={15} /> {t('edit.download')}
                 </button>
               )}
             </div>
           )}
         </aside>
       </div>
+      {isDragging && (
+        <div className="drop-veil">
+          <span>{t('common.dropToOpen')}</span>
+        </div>
+      )}
     </div>
   );
 }

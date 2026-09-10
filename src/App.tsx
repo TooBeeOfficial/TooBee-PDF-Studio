@@ -270,6 +270,25 @@ export default function App() {
     probePerformance();
   }, []);
 
+  /**
+   * Swallow file drops that miss every drop target.
+   *
+   * Chromium's default for a file dropped on a page is to navigate to it. In a
+   * browser that is merely surprising; here it replaces the entire application
+   * with a bare PDF view, and with no address bar or back button there is no way
+   * out short of restarting. Any drop that reaches the window has already passed
+   * every real target, so there is nothing left to do but cancel it.
+   */
+  useEffect(() => {
+    const cancel = (e: DragEvent) => e.preventDefault();
+    window.addEventListener('dragover', cancel);
+    window.addEventListener('drop', cancel);
+    return () => {
+      window.removeEventListener('dragover', cancel);
+      window.removeEventListener('drop', cancel);
+    };
+  }, []);
+
   return (
     <Router>
       <OSIntegration />

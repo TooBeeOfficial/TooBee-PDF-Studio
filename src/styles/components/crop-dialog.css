@@ -1,0 +1,130 @@
+/* Signature import and crop dialog. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Import dialog ──────────────────────────────────────────────────────── */
+
+.modal-wide {
+  width: 620px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-2);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+
+.crop-frame {
+  position: relative;
+  height: 280px;
+  background: var(--surface-app);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* The cut-out preview needs a background that reads as "nothing here" rather
+   than as white paper, or a failed removal looks identical to a good one. */
+.crop-frame.is-preview {
+  cursor: default;
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(45deg, #d9d6d0 25%, transparent 25%),
+    linear-gradient(-45deg, #d9d6d0 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #d9d6d0 75%),
+    linear-gradient(-45deg, transparent 75%, #d9d6d0 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+
+.crop-image {
+  position: absolute;
+  user-select: none;
+}
+
+.crop-preview {
+  position: absolute;
+  inset: var(--s-3);
+  margin: auto;
+  max-width: calc(100% - var(--s-5));
+  max-height: calc(100% - var(--s-5));
+  object-fit: contain;
+}
+
+.crop-rect {
+  position: absolute;
+  border: 1px solid var(--amber);
+  cursor: move;
+  /* Dims everything outside the crop without a second element to keep in sync. */
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+}
+
+.crop-handle {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--amber);
+  border: 1.5px solid var(--surface-panel);
+  transform: translate(-50%, -50%);
+}
+
+.crop-handle-nw { left: 0; top: 0; cursor: nwse-resize; }
+.crop-handle-ne { left: 100%; top: 0; cursor: nesw-resize; }
+.crop-handle-se { left: 100%; top: 100%; cursor: nwse-resize; }
+.crop-handle-sw { left: 0; top: 100%; cursor: nesw-resize; }
+
+.crop-busy {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--scrim);
+}
+
+.crop-busy .spin {
+  width: 26px;
+  height: 26px;
+  border: 3px solid var(--line-strong);
+  border-top-color: var(--amber);
+  border-radius: 50%;
+}
+
+/* A hint that is reporting a problem rather than explaining a control. */
+.hint-danger {
+  color: var(--danger);
+}
+
+/* Zoom controls for the crop step. */
+.crop-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.crop-zoom-value {
+  min-width: 46px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.crop-hint {
+  flex: 1;
+  min-width: 0;
+  text-align: right;
+  font-size: 11px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The image is larger than its frame once zoomed in, so the frame has to clip
+   it rather than let it spill over the dialog. */
+.crop-frame > .crop-image {
+  max-width: none;
+}

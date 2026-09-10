@@ -1,0 +1,88 @@
+/* Click-to-type numeric readout. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Click-to-type numeric readout ──────────────────────────────────────────
+   Reads as plain text until hovered, so it does not compete with the control
+   it labels, but is discoverable as something you can click. */
+
+.value-input {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  padding: 0 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 11px;
+  cursor: text;
+  transition: background var(--t-fast) ease-out, border-color var(--t-fast) ease-out,
+    color var(--t-fast) ease-out;
+}
+
+.value-input:hover {
+  background: var(--surface-raised);
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.value-field {
+  height: 20px;
+  padding: 0 4px;
+  background: var(--surface-app);
+  border: 1px solid var(--amber);
+  border-radius: 3px;
+  color: var(--text);
+  font-size: 11px;
+  text-align: center;
+  outline: none;
+}
+
+/* The previewer's toolbar used to be a slate-blue slab with a blurred backdrop
+   and white text baked in, which read as a different product in dark mode and
+   was invisible in light. It now takes the same panel surface as every other
+   floating chrome, so it follows the theme instead of fighting it. */
+.stage-zoom {
+  position: absolute;
+  top: var(--s-4);
+  right: var(--s-5);
+  z-index: var(--z-stage-overlay);
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-1) var(--s-2);
+  background: var(--surface-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-modal);
+}
+
+.stage-zoom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  background: none;
+  border: none;
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color var(--t-fast) ease-out, background var(--t-fast) ease-out;
+}
+
+.stage-zoom-btn:hover:not(:disabled) {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.stage-zoom-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* The zoom stepper keeps its value centred between the two buttons. */
+.zoom-control > .value-input,
+.zoom-control > .value-field {
+  flex: 1;
+}

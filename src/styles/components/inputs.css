@@ -1,0 +1,68 @@
+/* Text fields and labels. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Inputs ─────────────────────────────────────────────────────────────── */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.field > label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.input,
+.select {
+  height: 32px;
+  padding: 0 var(--s-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  width: 100%;
+  transition: border-color var(--t-fast) ease-out;
+}
+
+.input:hover,
+.select:hover {
+  border-color: var(--line-strong);
+}
+
+.input:focus,
+.select:focus {
+  border-color: var(--amber);
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--text-faint);
+}
+
+.input-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.select {
+  cursor: pointer;
+  appearance: none;
+  padding-right: var(--s-5);
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.error-text {
+  font-size: 12px;
+  color: var(--danger);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-1);
+}

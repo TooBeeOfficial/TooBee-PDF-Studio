@@ -1,0 +1,101 @@
+/* Document ledger in the rail. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Document ledger ────────────────────────────────────────────────────────
+   Makes visible something the app already did invisibly: the working document
+   carries from tool to tool. Sits in the rail between the nav and the footer. */
+
+.ledger {
+  flex-shrink: 0;
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--line);
+  background: var(--surface-panel);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  max-height: 44%;
+  overflow-y: auto;
+}
+
+.ledger-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-bottom: var(--s-1);
+}
+
+.ledger-doc {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.ledger-doc svg {
+  color: var(--amber-text);
+  flex-shrink: 0;
+}
+
+.ledger-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.ledger-size {
+  font-size: 11px;
+  color: var(--text-faint);
+  padding-left: 21px;
+}
+
+/* The chain of operations. A rule down the left ties the steps together into
+   one sequence rather than a list of unrelated events. */
+.ledger-steps {
+  list-style: none;
+  margin-top: var(--s-3);
+  padding-left: var(--s-2);
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.ledger-steps li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  font-size: 11px;
+  color: var(--text-faint);
+  position: relative;
+}
+
+/* The newest step is where the document is now. */
+.ledger-steps li.current {
+  color: var(--text);
+}
+
+.ledger-steps li.current::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--s-2) * -1 - 2px);
+  top: 5px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--amber);
+}
+
+.ledger-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ledger-detail {
+  font-size: 11px;
+  flex-shrink: 0;
+}

@@ -1,0 +1,37 @@
+/* FileUploader drop area. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Dropzone ───────────────────────────────────────────────────────────── */
+
+.dropzone {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  padding: var(--s-7) var(--s-5);
+  text-align: center;
+  background: var(--surface-raised);
+  cursor: pointer;
+  transition: border-color var(--t-fast) ease-out, background var(--t-fast) ease-out;
+}
+
+.dropzone:hover,
+.dropzone.active {
+  border-color: var(--amber);
+  background: var(--amber-wash);
+}
+
+.dropzone-icon {
+  color: var(--text-faint);
+  margin-bottom: var(--s-3);
+}
+
+.dropzone h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: var(--s-1);
+}
+
+.dropzone p {
+  color: var(--text-dim);
+  font-size: 12px;
+  max-width: 360px;
+  margin: 0 auto;
+}

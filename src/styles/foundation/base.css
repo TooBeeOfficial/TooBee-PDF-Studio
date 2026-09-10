@@ -1,0 +1,131 @@
+/* Reset, focus, scrollbars, typography roles. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Reset & base ───────────────────────────────────────────────────────── */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.45;
+  background-color: var(--surface-app);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+/* Every quantity in this app is mono with tabular figures, so values do not
+   jitter as they update. Applied by class, never by guessing at content. */
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+  font-weight: 500;
+}
+
+/* ─── Focus ──────────────────────────────────────────────────────────────────
+   One global rule. Never removed anywhere. */
+
+:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 6px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+  background-clip: content-box;
+}
+
+/* ─── Typography roles ───────────────────────────────────────────────────────
+   Scale: 11 / 12 / 13 / 15 / 20 / 28 / 40. Nothing below 11px, and 40px appears
+   at most once per screen. Hierarchy travels through scale, not weight alone. */
+
+/* The one large moment on a screen. Dashboard masthead only. */
+.t-display {
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+/* Second-largest. Empty-state headlines. */
+.t-headline {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+}
+
+.t-title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.t-section {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.t-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.t-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.t-micro {
+  font-size: 11px;
+  color: var(--text-dim);
+}

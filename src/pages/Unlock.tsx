@@ -1,14 +1,16 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useFileDrop } from '../hooks/useFileDrop';
 import { PDFDocument } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import FileUploader from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
 import EmptyStage from '../components/EmptyStage';
 import PasswordInput from '../components/PasswordInput';
 import StatusBanner from '../components/StatusBanner';
 import ProgressBar from '../components/ProgressBar';
-import { Download, Unlock as UnlockIcon, ShieldAlert, ShieldCheck, FileUp } from 'lucide-react';
+import { Download, Unlock as UnlockIcon, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useToolStore } from '../store/useToolStore';
 import { appendPdf } from '../utils/appendPdf';
 import { toPdfFile } from '../utils/fileConverter';
@@ -29,6 +31,8 @@ async function renderPageToJpeg(page: pdfjsLib.PDFPageProxy, scale = 2.0) {
 }
 
 export default function Unlock() {
+  const { t } = useTranslation();
+  const { dropProps, isDragging } = useFileDrop(files => handleFilesSelected(files));
   const { document: doc, setDocument, noteNextChange } = useToolStore();
   const { file, bytes: pdfBytes } = doc;
   const [password, setPassword] = useState('');
@@ -42,7 +46,6 @@ export default function Unlock() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isEncrypted, setIsEncrypted] = useState<boolean | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetOutput = () => { setUnlockedBytes(null); setUnlockedUrl(null); setError(null); setSuccess(false); setProgress(0); setTotalPages(0); setCurrentPage(0); };
 
@@ -63,7 +66,7 @@ export default function Unlock() {
     if (pdfBytes && pdfBytes.length && file) {
       try {
         const merged = await appendPdf(pdfBytes, newFiles);
-        noteNextChange('Added pages');
+        noteNextChange(t('common.addedPages'));
         setDocument(new File([merged], file.name, { type: 'application/pdf' }), merged);
         return;
       } catch (err) {
@@ -75,7 +78,7 @@ export default function Unlock() {
     try {
       f = await toPdfFile(newFiles[0]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unsupported file type.');
+      setError(e instanceof Error ? e.message : t('common.errUnsupported'));
       return;
     }
     const bytes = new Uint8Array(await f.arrayBuffer());
@@ -91,7 +94,7 @@ export default function Unlock() {
       try {
         pdfDoc = await pdfjsLib.getDocument({ data: pdfBytes.slice(0), password }).promise;
       } catch (e: any) {
-        if (e?.name === 'PasswordException') { setError('That password did not work. Try again.'); return; }
+        if (e?.name === 'PasswordException') { setError(t('unlock.errPassword')); return; }
         throw e;
       }
       const n = pdfDoc.numPages;
@@ -122,22 +125,9 @@ export default function Unlock() {
   };
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" {...dropProps}>
       <header className="view-header">
-        <h1>Unlock</h1>
-        {file && (
-          <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
-            <FileUp size={15} /> Add PDF
-          </button>
-        )}
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }}
-          style={{ display: 'none' }}
-          accept={ACCEPTED_FILE_EXT}
-          multiple
-        />
+        <h1>{t('unlock.title')}</h1>
       </header>
 
       <div className="workbench">
@@ -147,7 +137,7 @@ export default function Unlock() {
             : (
               <EmptyStage
                 motif="unlock"
-                headline={"Remove a password"}
+                headline={t('unlock.emptyHeadline')}
                 onFilesSelected={handleFilesSelected}
               />
             )}
@@ -155,28 +145,29 @@ export default function Unlock() {
 
         <aside className="inspector">
           <div className="inspector-body">
+            <div className="inspector-group">
+              <div className="t-eyebrow">{t('common.document')}</div>
+              {file && <div className="file-name" title={file.name}>{file.name}</div>}
+              <FileUploader onFilesSelected={handleFilesSelected} multiple />
+            </div>
+
             {file && (
               <>
-                <div className="inspector-group">
-                  <div className="t-eyebrow">Document</div>
-                  <div className="file-name" title={file.name}>{file.name}</div>
-                </div>
-
                 {isEncrypted !== null && (
                   <div className={`note ${isEncrypted ? '' : 'note-ok'}`}>
                     {isEncrypted
-                      ? <><ShieldAlert size={14} /><span>Password protected</span></>
-                      : <><ShieldCheck size={14} /><span>No password on this file</span></>}
+                      ? <><ShieldAlert size={14} /><span>{t('unlock.protected')}</span></>
+                      : <><ShieldCheck size={14} /><span>{t('unlock.notProtected')}</span></>}
                   </div>
                 )}
 
                 {isEncrypted && (
                   <div className="inspector-group">
-                    <div className="t-eyebrow">Password</div>
+                    <div className="t-eyebrow">{t('unlock.password')}</div>
                     <PasswordInput
-                      label="Current password"
+                      label={t('unlock.currentPassword')}
                       value={password}
-                      placeholder="Enter the PDF password"
+                      placeholder={t('unlock.passwordPlaceholder')}
                       onChange={v => { setPassword(v); setError(null); setSuccess(false); setUnlockedUrl(null); }}
                       onKeyDown={e => e.key === 'Enter' && password && !isProcessing && unlockPdf()}
                     />
@@ -184,13 +175,13 @@ export default function Unlock() {
                 )}
 
                 {isProcessing && (
-                  <ProgressBar value={progress} label="Unlocking pages" detail={`${currentPage} / ${totalPages}`} />
+                  <ProgressBar value={progress} label={t('unlock.unlocking')} detail={`${currentPage} / ${totalPages}`} />
                 )}
                 {error && <StatusBanner type="error" message={error} />}
                 {success && <StatusBanner type="success" message="Unlocked. Save the file below." />}
 
                 {isEncrypted === false && (
-                  <p className="hint">This PDF is not protected, so there is nothing to remove.</p>
+                  <p className="hint">{t('unlock.nothingToRemove')}</p>
                 )}
               </>
             )}
@@ -204,21 +195,26 @@ export default function Unlock() {
                 disabled={isProcessing || !password}
               >
                 {isProcessing
-                  ? <><span className="spinner" /> Unlocking…</>
-                  : <><UnlockIcon size={15} /> Unlock</>}
+                  ? <><span className="spinner" /> {t('unlock.unlocking2')}</>
+                  : <><UnlockIcon size={15} /> {t('unlock.title')}</>}
               </button>
               {unlockedUrl && (
                 <button
                   className="btn btn-secondary btn-block"
                   onClick={() => { const a = document.createElement('a'); a.href = unlockedUrl!; a.download = unlockedName; a.click(); }}
                 >
-                  <Download size={15} /> Save unlocked PDF
+                  <Download size={15} /> {t('unlock.download')}
                 </button>
               )}
             </div>
           )}
         </aside>
       </div>
+      {isDragging && (
+        <div className="drop-veil">
+          <span>{t('common.dropToOpen')}</span>
+        </div>
+      )}
     </div>
   );
 }

@@ -39,3 +39,8 @@ release/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Offline background-removal model, copied out of node_modules by
+# scripts/sync-bg-model.mjs before every build. ~85 MB of binary that npm
+# already pins, so it is derived rather than tracked.
+public/bg-removal/

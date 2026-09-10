@@ -1,0 +1,16 @@
+/* Range sliders. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Range control ──────────────────────────────────────────────────────── */
+
+.range-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+input[type='range'] {
+  width: 100%;
+  accent-color: var(--amber);
+  cursor: pointer;
+}

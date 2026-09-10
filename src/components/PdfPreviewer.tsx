@@ -3,7 +3,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { FileText, ZoomIn, ZoomOut } from 'lucide-react';
 import './PdfPreviewer.css';
-import { usePreviewShortcuts } from '../hooks/usePreviewShortcuts';
+import { useTranslation } from 'react-i18next';
+import { usePreviewShortcuts, stepZoom } from '../hooks/usePreviewShortcuts';
 import ValueInput from './ValueInput';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
@@ -165,6 +166,7 @@ function PdfPage({ pageInfo, pdfDoc, zoom }: PageProps) {
 
 // ─── Main component ────────────────────────────────────────────────────────────
 export default function PdfPreviewer({ pdfBytes }: Props) {
+  const { t } = useTranslation();
   const [pages, setPages] = useState<PageInfo[]>([]);
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -272,35 +274,25 @@ export default function PdfPreviewer({ pdfBytes }: Props) {
   return (
     <div style={{ position: 'relative', height: '100%', overflow: 'hidden' }}>
       
-      {/* Zoom Controls Overlay */}
-      <div style={{ 
-        position: 'absolute', 
-        top: '1rem', 
-        right: '1.5rem', 
-        zIndex: 10, 
-        display: 'flex', 
-        gap: '0.5rem', 
-        alignItems: 'center',
-        background: 'rgba(15, 23, 42, 0.8)',
-        backdropFilter: 'blur(8px)',
-        padding: '0.4rem 0.75rem',
-        borderRadius: '0.75rem',
-        border: '1px solid rgba(255,255,255,0.1)',
-        boxShadow: '0 10px 25px rgba(0,0,0,0.3)'
-      }}>
-        <button 
-          onClick={() => setZoom(prev => Math.max(0.25, prev - 0.2))}
-          style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: zoom <= 0.25 ? 0.3 : 1 }}
+      {/* Floats over the page, so it takes the panel surface rather than a
+          colour of its own. */}
+      <div className="stage-zoom">
+        <button
+          className="stage-zoom-btn"
+          onClick={() => setZoom(prev => stepZoom(prev, -1))}
+          disabled={zoom <= 0.25}
+          aria-label={t('common.zoomOut')}
         >
           <ZoomOut size={16} />
         </button>
-        <ValueInput label="Zoom" suffix="%" min={25} max={400} step={10} width={54}
-          className="value-input-on-dark"
+        <ValueInput label={t('common.zoom')} suffix="%" min={25} max={400} step={10} width={54}
           value={Math.round(zoom * 100)}
           onCommit={v => setZoom(v / 100)} />
-        <button 
-          onClick={() => setZoom(prev => Math.min(4, prev + 0.2))}
-          style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', opacity: zoom >= 4 ? 0.3 : 1 }}
+        <button
+          className="stage-zoom-btn"
+          onClick={() => setZoom(prev => stepZoom(prev, 1))}
+          disabled={zoom >= 4}
+          aria-label={t('common.zoomIn')}
         >
           <ZoomIn size={16} />
         </button>

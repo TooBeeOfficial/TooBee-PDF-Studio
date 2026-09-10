@@ -1,0 +1,24 @@
+/* Generic empty state. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Empty state ────────────────────────────────────────────────────────── */
+
+.empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  color: var(--text-faint);
+  text-align: center;
+  padding: var(--s-5);
+}
+
+.empty svg {
+  opacity: 0.35;
+}
+
+.empty p {
+  font-size: 13px;
+  max-width: 320px;
+}

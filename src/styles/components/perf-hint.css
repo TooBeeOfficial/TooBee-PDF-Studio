@@ -1,0 +1,26 @@
+/* Performance notice bar. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Performance hint ───────────────────────────────────────────────────────
+   Shown at most once, on first launch, on a machine that probed weak. */
+
+.perf-hint {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  flex-shrink: 0;
+  background: var(--amber-wash);
+  border-bottom: 1px solid var(--amber);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.perf-hint > svg {
+  color: var(--amber-text);
+  flex-shrink: 0;
+}
+
+.perf-hint > span {
+  flex: 1;
+  min-width: 0;
+}

@@ -1,0 +1,44 @@
+/* Modal scrim and dialog. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Modal ──────────────────────────────────────────────────────────────── */
+
+.modal-scrim {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal-scrim);
+  animation: fadeIn 140ms ease-out both;
+}
+
+.modal {
+  width: 400px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--surface-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-modal);
+  padding: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  position: relative;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-bottom: var(--s-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.modal-head h2 {
+  font-size: 15px;
+  font-weight: 600;
+}

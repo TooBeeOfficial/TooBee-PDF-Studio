@@ -1,0 +1,69 @@
+/* Page grid for reorder and rotate. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Page grid (reorder / rotate) ───────────────────────────────────────── */
+
+.page-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  gap: var(--s-3);
+}
+
+.page-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  background: var(--surface-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  cursor: grab;
+  transition: border-color var(--t-fast) ease-out, opacity var(--t-fast) ease-out;
+}
+
+.page-tile:hover {
+  border-color: var(--line-strong);
+}
+
+.page-tile.dragging {
+  opacity: 0.4;
+  border-color: var(--amber);
+  cursor: grabbing;
+}
+
+.page-thumb {
+  position: relative;
+  height: 172px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  /* A rendered page is white paper in both themes; it needs its own ground. */
+  background: #fff;
+  border: 1px solid var(--line-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Page position is information — reorder depends on reading it. */
+.page-number {
+  position: absolute;
+  top: var(--s-1);
+  left: var(--s-1);
+  z-index: var(--z-stage-item);
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--surface-app);
+  color: var(--text);
+  font-size: 11px;
+}
+
+.page-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 2px;
+}

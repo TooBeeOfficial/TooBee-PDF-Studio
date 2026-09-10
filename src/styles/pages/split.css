@@ -1,0 +1,33 @@
+/* Split rules editor. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Split rules ────────────────────────────────────────────────────────── */
+
+.rule-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.rule {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+.rule-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.rule-head .input {
+  background: var(--surface-panel);
+}
+
+.rule .input-mono {
+  background: var(--surface-panel);
+}

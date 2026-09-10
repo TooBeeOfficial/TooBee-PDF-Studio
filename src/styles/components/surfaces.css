@@ -1,0 +1,32 @@
+/* Cards and raised panels. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Surfaces ───────────────────────────────────────────────────────────── */
+
+.card {
+  background: var(--surface-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--s-4);
+}
+
+.card-raised {
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--s-3);
+}
+
+/* Deprecated: markup still carries .glass while pages are migrated.
+   Deliberately inert — no blur, no translucency, no border. */
+.glass {
+  background: none;
+  backdrop-filter: none;
+}
+
+.pdf-preview-container {
+  background: var(--surface-stage);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  min-height: 0;
+}

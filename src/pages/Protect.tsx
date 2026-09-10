@@ -1,16 +1,17 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { PDFDocument } from 'pdf-lib';
 import { encryptPDF, saslPrep } from '@pdfsmaller/pdf-encrypt';
-import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import FileUploader from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
 import EmptyStage from '../components/EmptyStage';
 import PasswordInput from '../components/PasswordInput';
 import StatusBanner from '../components/StatusBanner';
-import { Download, Lock, FileUp, CheckCircle2 } from 'lucide-react';
+import { Download, Lock, CheckCircle2 } from 'lucide-react';
 import { useToolStore } from '../store/useToolStore';
 import { appendPdf } from '../utils/appendPdf';
 import { toPdfFile } from '../utils/fileConverter';
 import { useTranslation } from 'react-i18next';
+import { useFileDrop } from '../hooks/useFileDrop';
 
 /**
  * ISO 32000-2 truncates an AES-256 password to 127 bytes, and does it silently:
@@ -80,6 +81,7 @@ function getPasswordStrength(pw: string): { labelKey: string; color: string; wid
 
 export default function Protect() {
   const { t } = useTranslation();
+  const { dropProps, isDragging } = useFileDrop(files => handleFilesSelected(files));
   const { document: doc, setDocument, noteNextChange } = useToolStore();
   const { file, bytes: pdfBytes } = doc;
   const [password, setPassword] = useState('');
@@ -90,7 +92,6 @@ export default function Protect() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [truncated, setTruncated] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const strength = getPasswordStrength(password);
   const passwordBytes = passwordByteLength(password);
@@ -150,22 +151,9 @@ export default function Protect() {
   };
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" {...dropProps}>
       <header className="view-header">
         <h1>{t('protect.title')}</h1>
-        {file && (
-          <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
-            <FileUp size={15} /> {t('protect.addPdf')}
-          </button>
-        )}
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }}
-          style={{ display: 'none' }}
-          accept={ACCEPTED_FILE_EXT}
-          multiple
-        />
       </header>
 
       <div className="workbench">
@@ -183,13 +171,14 @@ export default function Protect() {
 
         <aside className="inspector">
           <div className="inspector-body">
+            <div className="inspector-group">
+              <div className="t-eyebrow">{t('protect.eyebrowDocument')}</div>
+              {file && <div className="file-name" title={file.name}>{file.name}</div>}
+              <FileUploader onFilesSelected={handleFilesSelected} multiple />
+            </div>
+
             {file && (
               <>
-                <div className="inspector-group">
-                  <div className="t-eyebrow">{t('protect.eyebrowDocument')}</div>
-                  <div className="file-name" title={file.name}>{file.name}</div>
-                </div>
-
                 <div className="inspector-group">
                   <div className="t-eyebrow">{t('protect.eyebrowPassword')}</div>
 
@@ -283,6 +272,11 @@ export default function Protect() {
           )}
         </aside>
       </div>
+      {isDragging && (
+        <div className="drop-veil">
+          <span>{t('common.dropToOpen')}</span>
+        </div>
+      )}
     </div>
   );
 }

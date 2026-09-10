@@ -1,0 +1,60 @@
+/* Password strength meter. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Password strength ──────────────────────────────────────────────────────
+   Bar width and a word, never color alone. */
+
+.strength {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.strength-track {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+
+.strength-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width var(--t-panel) var(--ease), background var(--t-panel) var(--ease);
+}
+
+.strength-label {
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 44px;
+}
+
+.ok-text {
+  font-size: 12px;
+  color: var(--ok);
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+/* A quiet statement of fact, not a warning. */
+.note {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.note svg {
+  color: var(--amber-text);
+  flex-shrink: 0;
+}
+
+.note-ok svg {
+  color: var(--ok);
+}

@@ -50,16 +50,58 @@ export interface PreviewShortcutOptions {
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
+/**
+ * How hard the wheel bites. Multiplied by the raw wheel delta, so a flick of a
+ * trackpad moves the zoom a little and a firm mouse notch moves it a lot.
+ */
+const WHEEL_SENSITIVITY = 0.0022;
+
+/**
+ * Zoom multiplicatively rather than by addition.
+ *
+ * Adding a fixed step makes zoom feel wrong at both ends: +0.2 on top of 0.25
+ * is a 80% jump, while the same +0.2 on top of 4.0 is barely 5%. Scaling by a
+ * factor instead means every notch changes the view by the same proportion,
+ * which is what the eye reads as smooth. Taking the factor from the exponential
+ * of the wheel delta also makes zooming in and back out land exactly where it
+ * started, because exp(x) and exp(-x) are inverses.
+ */
+const zoomFactor = (delta: number) => Math.exp(-delta * WHEEL_SENSITIVITY);
+
+/** One press of a zoom button. A quarter each way, for the same reason. */
+export const ZOOM_BUTTON_FACTOR = 1.25;
+
+/**
+ * One press of Ctrl+= or Ctrl+-.
+ *
+ * Deliberately much gentler than the buttons: the shortcut is held down and
+ * auto-repeats, so a large step per press marches through the range in a few
+ * jumps. At eight percent a held key glides, and a single tap is a nudge rather
+ * than a leap to the next preset.
+ */
+const ZOOM_KEY_FACTOR = 1.08;
+
+/**
+ * The zoom a button press should land on. Exported so the Studio Editor and
+ * Sign buttons move by the same proportion as the wheel does, instead of the
+ * flat ±0.2 they used to add.
+ */
+export function stepZoom(value: number, direction: 1 | -1, min = 0.25, max = 4): number {
+  const next = direction > 0 ? value * ZOOM_BUTTON_FACTOR : value / ZOOM_BUTTON_FACTOR;
+  return clamp(Math.round(next * 1000) / 1000, min, max);
+}
+
 export function usePreviewShortcuts(opts: PreviewShortcutOptions) {
   const {
     enabled = true, zoom, page, hasSelection = false,
     onNudge, onDelete, onEscape,
   } = opts;
 
-  const applyZoom = useCallback((delta: number) => {
+  /** Scale the zoom by a factor. Rounded fine enough to read as continuous. */
+  const scaleZoom = useCallback((factor: number) => {
     if (!zoom) return;
     const { value, set, min = 0.25, max = 4 } = zoom;
-    set(clamp(Math.round((value + delta) * 100) / 100, min, max));
+    set(clamp(Math.round(value * factor * 1000) / 1000, min, max));
   }, [zoom]);
 
   const goToPage = useCallback((next: number) => {
@@ -76,8 +118,14 @@ export function usePreviewShortcuts(opts: PreviewShortcutOptions) {
     e.preventDefault();
     // Shift+wheel is reported on deltaX by some drivers, so take whichever moved.
     const raw = Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
-    applyZoom(raw > 0 ? -(zoom.step ?? 0.1) : (zoom.step ?? 0.1));
-  }, [enabled, zoom, applyZoom]);
+
+    // deltaMode 1 is lines and 2 is pages; both carry far smaller numbers than
+    // the pixel units the sensitivity is tuned for, so they are converted
+    // rather than left to produce an imperceptible nudge.
+    const pixels = e.deltaMode === 1 ? raw * 16 : e.deltaMode === 2 ? raw * 400 : raw;
+
+    scaleZoom(zoomFactor(pixels));
+  }, [enabled, zoom, scaleZoom]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -88,8 +136,8 @@ export function usePreviewShortcuts(opts: PreviewShortcutOptions) {
 
       // ── Zoom ───────────────────────────────────────────────────────────────
       if (mod && zoom && !e.altKey) {
-        if (e.key === '=' || e.key === '+') { e.preventDefault(); applyZoom(zoom.step ?? 0.1); return; }
-        if (e.key === '-' || e.key === '_') { e.preventDefault(); applyZoom(-(zoom.step ?? 0.1)); return; }
+        if (e.key === '=' || e.key === '+') { e.preventDefault(); scaleZoom(ZOOM_KEY_FACTOR); return; }
+        if (e.key === '-' || e.key === '_') { e.preventDefault(); scaleZoom(1 / ZOOM_KEY_FACTOR); return; }
         if (e.key === '0') { e.preventDefault(); zoom.set(zoom.reset ?? 1); return; }
       }
       if (mod || e.altKey) return;
@@ -128,7 +176,7 @@ export function usePreviewShortcuts(opts: PreviewShortcutOptions) {
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [enabled, zoom, page, hasSelection, onNudge, onDelete, onEscape, applyZoom, goToPage]);
+  }, [enabled, zoom, page, hasSelection, onNudge, onDelete, onEscape, scaleZoom, goToPage]);
 
   return { onWheel };
 }

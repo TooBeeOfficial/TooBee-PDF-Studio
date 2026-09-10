@@ -1,0 +1,96 @@
+/* Inspector groups, eyebrows, file names. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Inspector parts ────────────────────────────────────────────────────────
+   Shared by every tool so the controls sit in the same place on each page. */
+
+.file-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A vertical set of exclusive options, each with a title and one line of help. */
+.choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  text-align: left;
+  padding: var(--s-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color var(--t-fast) ease-out, background var(--t-fast) ease-out;
+}
+
+.choice:hover {
+  border-color: var(--line-strong);
+}
+
+.choice.selected {
+  border-color: var(--amber);
+  background: var(--amber-wash);
+}
+
+.choice-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.choice.selected .choice-title {
+  color: var(--amber-text);
+}
+
+.choice-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+/* Label/value pairs. Values are quantities, so they carry .num for mono. */
+.readout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.readout > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.readout dt {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.readout dd {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.readout-total {
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line);
+}
+
+.readout-total dt {
+  font-weight: 600;
+  color: var(--text);
+}

@@ -1,10 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useFileDrop } from '../hooks/useFileDrop';
 import { PDFDocument } from 'pdf-lib';
-import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import FileUploader from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
 import EmptyStage from '../components/EmptyStage';
 import StatusBanner from '../components/StatusBanner';
-import { Download, Plus, Trash2, FileStack, FileUp } from 'lucide-react';
+import { Download, Plus, Trash2, FileStack } from 'lucide-react';
 import { useToolStore } from '../store/useToolStore';
 import { appendPdf } from '../utils/appendPdf';
 import { toPdfFile } from '../utils/fileConverter';
@@ -13,6 +15,11 @@ interface SplitRule { id: string; name: string; range: string; }
 interface SplitResult { name: string; url: string; }
 
 export default function Split() {
+  const { t } = useTranslation();
+  const { dropProps, isDragging } = useFileDrop(files => {
+                setResults([]);
+                handleFilesSelected(files);
+              });
   const { document: doc, setDocument, noteNextChange } = useToolStore();
   const { file, bytes: pdfBytes } = doc;
   const [numPages, setNumPages] = useState(0);
@@ -20,7 +27,6 @@ export default function Split() {
   const [results, setResults] = useState<SplitResult[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (!newFiles.length) return;
@@ -30,7 +36,7 @@ export default function Split() {
     if (pdfBytes && pdfBytes.length && file) {
       try {
         const merged = await appendPdf(pdfBytes, newFiles);
-        noteNextChange('Added pages');
+        noteNextChange(t('common.addedPages'));
         setDocument(new File([merged], file.name, { type: 'application/pdf' }), merged);
         return;
       } catch (err) {
@@ -42,7 +48,7 @@ export default function Split() {
     try {
       f = await toPdfFile(newFiles[0]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'That file type cannot be opened.');
+      setError(e instanceof Error ? e.message : t('common.errUnsupported'));
       return;
     }
     setError(null);
@@ -88,9 +94,9 @@ export default function Split() {
         newResults.push({ name: rule.name || 'Split Result', url: URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' })) });
       }
       setResults(newResults);
-      setError(newResults.length ? null : 'No pages matched. Check the page ranges.');
+      setError(newResults.length ? null : t('split.errNoPages'));
     } catch {
-      setError('Split failed. Check the page ranges.');
+      setError(t('split.errFailed'));
     } finally {
       setIsProcessing(false);
     }
@@ -99,22 +105,9 @@ export default function Split() {
   const activeRules = rules.filter(r => r.range.trim()).length;
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" {...dropProps}>
       <header className="view-header">
-        <h1>Split</h1>
-        {file && (
-          <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
-            <FileUp size={15} /> Add PDF
-          </button>
-        )}
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={e => { if (e.target.files?.length) { setResults([]); handleFilesSelected(Array.from(e.target.files)); } }}
-          style={{ display: 'none' }}
-          accept={ACCEPTED_FILE_EXT}
-          multiple
-        />
+        <h1>{t('split.title')}</h1>
       </header>
 
       <div className="workbench">
@@ -126,7 +119,7 @@ export default function Split() {
                   <div key={i} className="result-card">
                     <div className="tool-icon"><FileStack size={18} /></div>
                     <h3>{res.name}</h3>
-                    <p className="hint">Ready to save</p>
+                    <p className="hint">{t('split.readyToSave')}</p>
                     <button
                       className="btn btn-secondary btn-block"
                       onClick={() => { const a = document.createElement('a'); a.href = res.url; a.download = `${res.name}.pdf`; a.click(); }}
@@ -142,7 +135,7 @@ export default function Split() {
           ) : (
             <EmptyStage
               motif="split"
-              headline={"Split a PDF into parts"}
+              headline={t('split.emptyHeadline')}
               onFilesSelected={handleFilesSelected}
             />
           )}
@@ -150,18 +143,24 @@ export default function Split() {
 
         <aside className="inspector">
           <div className="inspector-body">
+            <div className="inspector-group">
+              <div className="t-eyebrow">{t('common.document')}</div>
+              {file && (<>
+                <div className="file-name" title={file.name}>{file.name}</div>
+                {numPages > 0 && (
+                  <p className="hint"><span className="num">{numPages}</span> {t('common.pagesLabel', { count: numPages })}</p>
+                )}
+              </>)}
+              <FileUploader onFilesSelected={files => {
+                setResults([]);
+                handleFilesSelected(files);
+              }} multiple />
+            </div>
+
             {file && (
               <>
                 <div className="inspector-group">
-                  <div className="t-eyebrow">Document</div>
-                  <div className="file-name" title={file.name}>{file.name}</div>
-                  {numPages > 0 && (
-                    <p className="hint"><span className="num">{numPages}</span> pages</p>
-                  )}
-                </div>
-
-                <div className="inspector-group">
-                  <div className="t-eyebrow">Output files</div>
+                  <div className="t-eyebrow">{t('split.outputFiles')}</div>
                   <div className="rule-list">
                     {rules.map((rule, i) => (
                       <div key={rule.id} className="rule">
@@ -170,7 +169,7 @@ export default function Split() {
                           <input
                             type="text"
                             className="input"
-                            placeholder="File name"
+                            placeholder={t('split.fileName')}
                             aria-label={`File name for output ${i + 1}`}
                             value={rule.name}
                             onChange={e => updateRule(rule.id, 'name', e.target.value)}
@@ -186,7 +185,7 @@ export default function Split() {
                         <input
                           type="text"
                           className="input input-mono"
-                          placeholder="1-3, 5"
+                          placeholder={t('split.rangePlaceholder')}
                           aria-label={`Page range for output ${i + 1}`}
                           value={rule.range}
                           onChange={e => updateRule(rule.id, 'range', e.target.value)}
@@ -195,9 +194,9 @@ export default function Split() {
                     ))}
                   </div>
                   <button className="btn btn-secondary btn-block" onClick={addRule}>
-                    <Plus size={15} /> Add another file
+                    <Plus size={15} /> {t('split.addAnother')}
                   </button>
-                  <p className="hint">Use commas for single pages and a dash for a run, like 1-3, 5.</p>
+                  <p className="hint">{t('split.rangeHint')}</p>
                 </div>
 
                 {error && <StatusBanner type="error" message={error} />}
@@ -213,13 +212,18 @@ export default function Split() {
                 disabled={isProcessing || activeRules === 0}
               >
                 {isProcessing
-                  ? 'Splitting…'
+                  ? t('split.splitting')
                   : activeRules === 1 ? 'Split into 1 file' : `Split into ${activeRules} files`}
               </button>
             </div>
           )}
         </aside>
       </div>
+      {isDragging && (
+        <div className="drop-veil">
+          <span>{t('common.dropToOpen')}</span>
+        </div>
+      )}
     </div>
   );
 }

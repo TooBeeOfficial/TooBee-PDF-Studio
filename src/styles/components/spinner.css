@@ -1,0 +1,33 @@
+/* Spinners. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Spinner ────────────────────────────────────────────────────────────────
+   One definition, replacing the hand-rolled bordered spans that were repeated
+   inline across the tool pages. */
+
+.spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--amber);
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+.spinner-lg {
+  width: 28px;
+  height: 28px;
+  border-width: 3px;
+}
+
+/* A count next to a section label, e.g. the merge queue length. */
+.count {
+  margin-left: var(--s-2);
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--surface-raised);
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0;
+}

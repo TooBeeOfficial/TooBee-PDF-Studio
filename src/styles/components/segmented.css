@@ -1,0 +1,40 @@
+/* Segmented pickers. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Segmented control (theme / performance pickers) ────────────────────── */
+
+.segmented {
+  display: flex;
+  padding: 2px;
+  gap: 2px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+.segmented button {
+  flex: 1;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 3px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-1);
+  transition: background var(--t-fast) ease-out, color var(--t-fast) ease-out;
+}
+
+.segmented button:hover {
+  color: var(--text);
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--amber);
+  color: var(--on-amber);
+  font-weight: 600;
+}

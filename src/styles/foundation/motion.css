@@ -1,0 +1,66 @@
+/* Motion budget and reduced-motion rules. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Motion: the two moments worth crafting ─────────────────────────────────
+   Deliberately only two, both on the events that actually matter. Everything
+   else in the app stays at 120ms and silent.
+
+   Both are scoped to [data-perf='full'], so Light and Minimal never run them,
+   and the reduced-motion block above still overrides regardless of tier. */
+
+/* 1 — Document arrival. When a file loads, the inspector's groups resolve in
+       sequence while the stage settles, so the eye is led from the document to
+       the controls rather than having everything appear at once. */
+
+@keyframes settle-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[data-perf='full'] .inspector-body > * {
+  animation: settle-in 220ms var(--ease) both;
+}
+
+[data-perf='full'] .inspector-body > *:nth-child(1) { animation-delay: 0ms; }
+[data-perf='full'] .inspector-body > *:nth-child(2) { animation-delay: 45ms; }
+[data-perf='full'] .inspector-body > *:nth-child(3) { animation-delay: 90ms; }
+[data-perf='full'] .inspector-body > *:nth-child(4) { animation-delay: 135ms; }
+[data-perf='full'] .inspector-body > *:nth-child(n+5) { animation-delay: 170ms; }
+
+/* The action button is the destination of that sequence, so it arrives last. */
+[data-perf='full'] .inspector-action {
+  animation: settle-in 220ms var(--ease) 200ms both;
+}
+
+/* 2 — Operation completion. The result appears where the work happened, at the
+       bottom of the inspector next to the button that was clicked, rather than
+       announcing itself somewhere else on screen. */
+
+@keyframes confirm {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[data-perf='full'] .status-banner--success,
+[data-perf='full'] .status-banner--error {
+  animation: confirm 200ms var(--ease) both;
+}
+
+/* The empty page settles once on arrival — the app's first frame, and the only
+   place the artwork gets a moment. */
+[data-perf='full'] .empty-page {
+  animation: settle-in 320ms var(--ease) both;
+}

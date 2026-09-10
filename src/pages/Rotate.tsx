@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useFileDrop } from '../hooks/useFileDrop';
 import { PDFDocument, degrees } from 'pdf-lib';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import FileUploader from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
 import EmptyStage from '../components/EmptyStage';
-import { Download, RotateCw, Eye, ArrowLeft, ArrowRight, RefreshCw, Trash2, FileUp, LayoutGrid } from 'lucide-react';
+import { Download, RotateCw, Eye, ArrowLeft, ArrowRight, RefreshCw, Trash2, LayoutGrid } from 'lucide-react';
 import { useToolStore } from '../store/useToolStore';
 import { appendPdf } from '../utils/appendPdf';
 import { toPdfFile } from '../utils/fileConverter';
@@ -19,10 +21,11 @@ interface PageData {
 }
 
 export default function Rotate() {
+  const { t } = useTranslation();
+  const { dropProps, isDragging } = useFileDrop(files => handleFilesSelected(files));
   const { document: doc, setDocument, noteNextChange } = useToolStore();
   const { file, bytes: currentPdfBytes } = doc;
   const [currentPdfUrl, setCurrentPdfUrl] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isGeneratingThumbs, setIsGeneratingThumbs] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -93,7 +96,7 @@ export default function Rotate() {
     if (currentPdfBytes && currentPdfBytes.length && file) {
       try {
         const merged = await appendPdf(currentPdfBytes, newFiles);
-        noteNextChange('Added pages');
+        noteNextChange(t('common.addedPages'));
         setPages([]);
         setDocument(new File([merged], file.name, { type: 'application/pdf' }), merged);
         return;
@@ -106,7 +109,7 @@ export default function Rotate() {
     try {
       selectedFile = await toPdfFile(newFiles[0]);
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Unsupported file type.');
+      alert(e instanceof Error ? e.message : t('common.errUnsupported'));
       return;
     }
     setHasChanges(false);
@@ -243,12 +246,12 @@ export default function Rotate() {
   };
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" {...dropProps}>
       <header className="view-header">
-        <h1>Rotate &amp; reorder</h1>
+        <h1>{t('rotate.title')}</h1>
         <div style={{ display: 'flex', gap: 'var(--s-2)', alignItems: 'center' }}>
           {file && (
-            <div className="segmented" role="group" aria-label="Stage view">
+            <div className="segmented" role="group" aria-label={t('rotate.stageAria')}>
               <button aria-pressed={stageView === 'pages'} onClick={() => setStageView('pages')}>
                 <LayoutGrid size={14} /> Pages
               </button>
@@ -257,23 +260,6 @@ export default function Rotate() {
               </button>
             </div>
           )}
-          {file && (
-            <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
-              <FileUp size={15} /> Add PDF
-            </button>
-          )}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={(e) => {
-              if (e.target.files?.length) {
-                handleFilesSelected(Array.from(e.target.files));
-              }
-            }}
-            style={{ display: 'none' }}
-            accept={ACCEPTED_FILE_EXT}
-            multiple
-          />
         </div>
       </header>
 
@@ -282,7 +268,7 @@ export default function Rotate() {
           {!file ? (
             <EmptyStage
               motif="rotate"
-              headline={"Reorder and rotate pages"}
+              headline={t('rotate.emptyHeadline')}
               onFilesSelected={handleFilesSelected}
             />
           ) : stageView === 'preview' ? (
@@ -291,7 +277,7 @@ export default function Rotate() {
             ) : (
               <div className="empty">
                 <Eye size={32} strokeWidth={1.5} />
-                <p>Loading the document…</p>
+                <p>{t('rotate.loading')}</p>
               </div>
             )
           ) : (
@@ -366,19 +352,22 @@ export default function Rotate() {
 
         <aside className="inspector">
           <div className="inspector-body">
+            <div className="inspector-group">
+              <div className="t-eyebrow">{t('common.document')}</div>
+              {file && (<>
+                <div className="file-name" title={file.name}>{file.name}</div>
+                <p className="hint">
+                  <span className="num">{pages.length}</span> {t('common.pagesLabel', { count: pages.length })}
+                  {isGeneratingThumbs && ` · ${t('rotate.loadingPreviews')}`}
+                </p>
+              </>)}
+              <FileUploader onFilesSelected={handleFilesSelected} multiple />
+            </div>
+
             {file && (
               <>
                 <div className="inspector-group">
-                  <div className="t-eyebrow">Document</div>
-                  <div className="file-name" title={file.name}>{file.name}</div>
-                  <p className="hint">
-                    <span className="num">{pages.length}</span> page{pages.length !== 1 ? 's' : ''}
-                    {isGeneratingThumbs && ' · loading previews'}
-                  </p>
-                </div>
-
-                <div className="inspector-group">
-                  <div className="t-eyebrow">Whole document</div>
+                  <div className="t-eyebrow">{t('rotate.wholeDocument')}</div>
                   <button
                     className="btn btn-secondary btn-block"
                     disabled={isProcessing}
@@ -401,11 +390,11 @@ export default function Rotate() {
                       setIsProcessing(false);
                     }}
                   >
-                    <RefreshCw size={15} className={isProcessing ? 'spin' : ''} /> Rotate every page 90°
+                    <RefreshCw size={15} className={isProcessing ? 'spin' : ''} /> {t('rotate.rotateAll')}
                   </button>
                 </div>
 
-                <p className="hint">Drag a page to move it, or use the arrows under each one.</p>
+                <p className="hint">{t('rotate.dragHint')}</p>
               </>
             )}
           </div>
@@ -421,12 +410,17 @@ export default function Rotate() {
                   a.click();
                 }}
               >
-                <Download size={15} /> Save changes
+                <Download size={15} /> {t('rotate.save')}
               </button>
             </div>
           )}
         </aside>
       </div>
+      {isDragging && (
+        <div className="drop-veil">
+          <span>{t('common.dropToOpen')}</span>
+        </div>
+      )}
     </div>
   );
 }

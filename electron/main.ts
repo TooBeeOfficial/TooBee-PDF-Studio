@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { app, BrowserWindow, ipcMain, protocol, shell } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
@@ -15,6 +15,79 @@ const debugLogPath = path.join(app.getPath("userData"), "open-files-debug.log");
 function debugLog(...args: unknown[]) {
   const line = `[${new Date().toISOString()}] ${args.map(a => typeof a === "string" ? a : JSON.stringify(a)).join(" ")}\n`;
   try { fs.appendFileSync(debugLogPath, line); } catch { /* ignore */ }
+}
+
+/**
+ * Where reusable signatures live, and the guard that keeps them there.
+ *
+ * The id in a save or delete arrives from the renderer, so it is treated as
+ * untrusted input: anything but a plain slug is refused outright rather than
+ * sanitised, because a request carrying a path separator is a bug or an attack
+ * and neither deserves a best-effort interpretation.
+ */
+function signatureDir() {
+  return path.join(app.getPath("userData"), "signatures");
+}
+
+function signatureFile(id: unknown) {
+  if (typeof id !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) {
+    throw new Error("Invalid signature id.");
+  }
+  return path.join(signatureDir(), `${id}.json`);
+}
+
+/**
+ * A fetchable scheme for the offline background-removal model.
+ *
+ * In production the renderer is loaded from disk with loadFile(), so its origin
+ * is file: — and Chromium refuses fetch() against file: URLs. The model library
+ * loads its manifest and every weight chunk with fetch(), so on the packaged app
+ * it could not read them however they were bundled.
+ *
+ * Rather than move the whole window onto a custom scheme, or switch off
+ * webSecurity, only the model files get one. Nothing else about how the app
+ * loads changes, and the scheme serves exactly one directory.
+ *
+ * Registration has to happen before the app is ready, hence the module-level
+ * call below rather than a line inside whenReady().
+ */
+const MODEL_SCHEME = "bgmodel";
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: MODEL_SCHEME,
+    privileges: { standard: true, secure: true, supportFetchAPI: true },
+  },
+]);
+
+function registerModelProtocol() {
+  protocol.handle(MODEL_SCHEME, async request => {
+    // Only the last path segment is honoured, and only if it is a plain name.
+    // Chunks are content-addressed hashes, so nothing legitimate needs a
+    // separator, and refusing them outright keeps the handler from being a
+    // window onto the rest of the disk.
+    const name = decodeURIComponent(new URL(request.url).pathname).replace(/^\/+/, "");
+    if (!/^[A-Za-z0-9._-]+$/.test(name) || name.includes("..")) {
+      return new Response("Bad request", { status: 400 });
+    }
+
+    try {
+      const data = await fs.promises.readFile(
+        path.join(__dirname, "..", "dist-renderer", "bg-removal", name),
+      );
+      return new Response(data, {
+        headers: {
+          "content-type": name.endsWith(".json")
+            ? "application/json"
+            : "application/octet-stream",
+        },
+      });
+    } catch {
+      // The model pack is optional; a miss is the renderer's cue to report the
+      // automatic cutout as unavailable rather than an error to shout about.
+      return new Response("Not found", { status: 404 });
+    }
+  });
 }
 
 let win: BrowserWindow | null = null;
@@ -57,16 +130,52 @@ function createWindow() {
     },
   });
 
+  // Hidden for good, not merely auto-hidden. `autoHideMenuBar = true` is
+  // specifically the "hide it until someone presses Alt" mode, which is why the
+  // File/Edit/View bar kept appearing over the app.
+  //
+  // The menu itself is deliberately left in place rather than cleared with
+  // Menu.setApplicationMenu(null). On Windows and Linux the default menu is
+  // what supplies the standard editing accelerators — Ctrl+C, Ctrl+V, Ctrl+X,
+  // Ctrl+A, Ctrl+Z — so removing it would silently break copy and paste in
+  // every text field in the app. Keeping it and never showing it costs nothing.
   win.setMenuBarVisibility(false);
-  win.autoHideMenuBar = true;
+  win.autoHideMenuBar = false;
 
   const devServerUrl = process.env["VITE_DEV_SERVER_URL"];
   if (devServerUrl) {
     win.loadURL(devServerUrl);
-    win.webContents.openDevTools();
+    // DevTools no longer opens by itself. It used to open on every `npm run
+    // dev`, which meant the app was never seen at the size it actually ships
+    // at, and a stray dev window left the panel sitting over the document.
+    // Set DEVTOOLS=1 to get it back for a session; F12 and Ctrl+Shift+I still
+    // work at any time.
+    if (process.env["DEVTOOLS"]) win.webContents.openDevTools();
   } else {
     win.loadFile(path.join(__dirname, "../dist-renderer/index.html"));
   }
+
+  // Opening DevTools by hand needs a shortcut now that it is not automatic.
+  // The menu bar is hidden, so there is nowhere else to reach it from.
+  win.webContents.on("before-input-event", (_event, input) => {
+    if (input.type !== "keyDown") return;
+    const toggle =
+      input.key === "F12" ||
+      (input.control && input.shift && input.key.toLowerCase() === "i");
+    if (toggle) win?.webContents.toggleDevTools();
+  });
+
+  // Belt and braces for the drop guard in the renderer: nothing in this app
+  // ever navigates the main frame, so any attempt is a mishandled drop or a
+  // stray link and is refused rather than allowed to replace the UI.
+  win.webContents.on("will-navigate", (event, url) => {
+    const target = new URL(url);
+    const current = new URL(win?.webContents.getURL() || "about:blank");
+    if (target.origin !== current.origin || target.pathname !== current.pathname) {
+      debugLog("blocked navigation to", url);
+      event.preventDefault();
+    }
+  });
 
   win.on("closed", () => {
     win = null;
@@ -75,6 +184,7 @@ function createWindow() {
 
 app.whenReady().then(() => {
   debugLog("app ready, gotTheLock =", gotTheLock, "process.argv =", process.argv);
+  registerModelProtocol();
   createWindow();
 
   app.on("activate", () => {
@@ -101,6 +211,65 @@ app.whenReady().then(() => {
 
   ipcMain.handle("app:getVersion", () => {
     return app.getVersion();
+  });
+
+  // ── Saved signature library ───────────────────────────────────────────────
+  // One JSON file per signature under userData, rather than a single index or a
+  // renderer-side database. The user asked to be able to reuse these, and files
+  // on disk mean they can also back them up, copy them to another machine, or
+  // delete one by hand — none of which is true of IndexedDB. One file each also
+  // means a corrupt write costs a single signature instead of the library.
+
+  ipcMain.handle("signatures:list", async () => {
+    const dir = signatureDir();
+    try {
+      const names = await fs.promises.readdir(dir);
+      const records = await Promise.all(
+        names
+          .filter(n => n.endsWith(".json"))
+          .map(async n => {
+            try {
+              return JSON.parse(await fs.promises.readFile(path.join(dir, n), "utf8"));
+            } catch {
+              // A half-written or hand-edited file should not take the whole
+              // library down with it.
+              debugLog("signatures: skipping unreadable record", n);
+              return null;
+            }
+          }),
+      );
+      return records.filter(Boolean);
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException)?.code === "ENOENT") return [];
+      throw err;
+    }
+  });
+
+  ipcMain.handle("signatures:save", async (_event, record: { id?: string }) => {
+    const file = signatureFile(record?.id);
+    await fs.promises.mkdir(path.dirname(file), { recursive: true });
+    // Write beside it and rename, so an interrupted save cannot leave a
+    // truncated file where a good one used to be.
+    const temp = `${file}.tmp`;
+    await fs.promises.writeFile(temp, JSON.stringify(record), "utf8");
+    await fs.promises.rename(temp, file);
+    return true;
+  });
+
+  ipcMain.handle("signatures:delete", async (_event, id: string) => {
+    try {
+      await fs.promises.unlink(signatureFile(id));
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") throw err;
+    }
+    return true;
+  });
+
+  ipcMain.handle("signatures:reveal", async () => {
+    const dir = signatureDir();
+    await fs.promises.mkdir(dir, { recursive: true });
+    await shell.openPath(dir);
+    return dir;
   });
 
   handleArgv(process.argv);
@@ -141,9 +310,12 @@ function handleArgv(argv: string[]) {
     // ignore flags
     if (arg.startsWith("--")) continue;
 
-    // only real files
+    // Only real files. existsSync is also true for directories, and in dev the
+    // launcher runs `electron .` — so the "." was taken for a document to open,
+    // handed to the renderer, and failed there with EISDIR when something tried
+    // to read a directory as a PDF.
     try {
-      if (fs.existsSync(arg)) {
+      if (fs.statSync(arg).isFile()) {
         files.push(arg);
       }
     } catch { }

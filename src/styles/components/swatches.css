@@ -1,0 +1,59 @@
+/* Colour swatches. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Color swatches ─────────────────────────────────────────────────────── */
+
+.swatch-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+/* Wraps the native colour input so it can be given a themed border. */
+.swatch-native {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.swatch-native input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.swatch-native > span {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-strong);
+  pointer-events: none;
+}
+
+.swatches {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 3px;
+}
+
+.swatch {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 3px;
+  /* Every swatch keeps an edge so white and black read on either theme. */
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+  padding: 0;
+  transition: box-shadow var(--t-fast) ease-out;
+}
+
+.swatch.selected {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 1px var(--amber);
+}

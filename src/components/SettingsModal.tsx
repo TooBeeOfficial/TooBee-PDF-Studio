@@ -169,9 +169,11 @@ export default function SettingsModal({ isOpen, onClose }: Props) {
           <dl className="shortcuts">
             <div><dt>{t('settings.scZoom')}</dt><dd><kbd>Shift</kbd>/<kbd>Ctrl</kbd>+{t('settings.scWheel')} · <kbd>Ctrl</kbd><kbd>+</kbd><kbd>−</kbd></dd></div>
             <div><dt>{t('settings.scZoomReset')}</dt><dd><kbd>Ctrl</kbd><kbd>0</kbd></dd></div>
-            <div><dt>{t('settings.scPage')}</dt><dd><kbd>PgUp</kbd><kbd>PgDn</kbd></dd></div>
-            <div><dt>{t('settings.scNudge')}</dt><dd><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd></dd></div>
-            <div><dt>{t('settings.scDeleteSel')}</dt><dd><kbd>Del</kbd></dd></div>
+            <div><dt>{t('settings.scPage')}</dt><dd><kbd>PgUp</kbd><kbd>PgDn</kbd> · <kbd>←</kbd><kbd>→</kbd></dd></div>
+            <div><dt>{t('settings.scFirstLast')}</dt><dd><kbd>Home</kbd><kbd>End</kbd></dd></div>
+            <div><dt>{t('settings.scNudge')}</dt><dd><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> · <kbd>Shift</kbd>{t('settings.scNudgeFar')}</dd></div>
+            <div><dt>{t('settings.scDeleteSel')}</dt><dd><kbd>Del</kbd><kbd>Backspace</kbd></dd></div>
+            <div><dt>{t('settings.scEscape')}</dt><dd><kbd>Esc</kbd></dd></div>
           </dl>
         </div>
 

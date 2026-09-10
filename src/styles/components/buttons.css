@@ -1,0 +1,90 @@
+/* Every button variant. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Buttons ────────────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-sm);
+  font-family: inherit;
+  font-weight: 500;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  gap: var(--s-2);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background var(--t-fast) ease-out, border-color var(--t-fast) ease-out,
+    color var(--t-fast) ease-out;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  height: 28px;
+  padding: 0 var(--s-2);
+  font-size: 12px;
+}
+
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* on-amber, not white: white on #d0a700 is 2.3:1 and fails WCAG AA. */
+.btn-primary {
+  background: var(--amber);
+  color: var(--on-amber);
+  font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--amber-hover);
+}
+
+.btn-secondary {
+  background: var(--surface-raised);
+  color: var(--text);
+  border-color: var(--line);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--line-strong);
+}
+
+.btn-secondary.active {
+  background: var(--amber-wash);
+  color: var(--amber-text);
+  border-color: var(--amber);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border-color: transparent;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--danger-wash);
+}

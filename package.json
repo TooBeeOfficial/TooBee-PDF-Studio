@@ -7,15 +7,16 @@
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "vite",
-    "build:dev": "vite build --mode development && electron-builder --win --dir",
-    "build": "vite build && electron-builder",
-    "build:win": "vite build && electron-builder --win",
-    "build:mac": "vite build && electron-builder --mac",
-    "build:linux": "vite build && electron-builder --linux",
+    "dev": "npm run sync:models && vite",
+    "build:dev": "npm run sync:models && vite build --mode development && electron-builder --win --dir",
+    "build": "npm run sync:models && vite build && electron-builder",
+    "build:win": "npm run sync:models && vite build && electron-builder --win",
+    "build:mac": "npm run sync:models && vite build && electron-builder --mac",
+    "build:linux": "npm run sync:models && vite build && electron-builder --linux",
     "lint": "eslint .",
     "preview": "vite preview",
-    "gen:icon": "node scripts/generate-ico.mjs"
+    "gen:icon": "node scripts/generate-ico.mjs",
+    "sync:models": "node scripts/sync-bg-model.mjs"
   },
   "build": {
     "productName": "TooBee PDF Studio",
@@ -108,6 +109,8 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@imgly/background-removal": "^1.4.5",
+    "@imgly/background-removal-data": "^1.4.5",
     "@resvg/resvg-js": "^2.6.2",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",

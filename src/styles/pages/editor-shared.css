@@ -1,0 +1,64 @@
+/* Shared Sign and Studio Editor chrome. Loaded from index.css — order matters, see the note there. */
+
+/* ═══ Editor tools (Sign, Studio Editor) ═════════════════════════════════════
+   These two keep their own canvas interaction code, but their panels now use
+   the same tokens, controls and inspector structure as every other tool. */
+
+/* The canvas area of an editor stage, above the page navigation. */
+.stage-canvas {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: var(--s-5);
+}
+
+/* A rendered page is white paper in both themes, so it gets its own edge
+   rather than a drop shadow. */
+.canvas-frame {
+  position: relative;
+  height: fit-content;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+}
+
+/* Page navigation sits under the document it moves through. */
+.page-nav {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-top: 1px solid var(--line);
+  background: var(--surface-chrome);
+}
+
+.page-nav-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  min-width: 96px;
+  text-align: center;
+}
+
+/* ─── Input with a leading icon ──────────────────────────────────────────── */
+
+.input-with-icon {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.input-with-icon > svg {
+  position: absolute;
+  left: var(--s-2);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-faint);
+  pointer-events: none;
+}
+
+.input-with-icon > .input {
+  padding-left: 28px;
+}

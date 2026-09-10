@@ -1,0 +1,43 @@
+/* Status banners and progress. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Status / progress ──────────────────────────────────────────────────── */
+
+.status {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  border: 1px solid transparent;
+}
+
+.status svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.status-ok {
+  background: var(--ok-wash);
+  color: var(--ok);
+  border-color: var(--ok);
+}
+
+.status-danger {
+  background: var(--danger-wash);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.progress {
+  height: 4px;
+  background: var(--surface-raised);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--amber);
+  transition: width var(--t-panel) var(--ease);
+}

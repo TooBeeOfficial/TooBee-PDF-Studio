@@ -1,0 +1,65 @@
+/* Font picker menu and its scrim. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Font menu ──────────────────────────────────────────────────────────── */
+
+.font-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: var(--z-menu);
+  margin-top: var(--s-1);
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--surface-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-modal);
+  display: flex;
+  flex-direction: column;
+}
+
+.font-option {
+  text-align: left;
+  padding: var(--s-2) var(--s-3);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background var(--t-fast) ease-out;
+}
+
+.font-option:last-child {
+  border-bottom: none;
+}
+
+.font-option:hover {
+  background: var(--surface-raised);
+}
+
+.font-option.selected {
+  background: var(--amber-wash);
+  color: var(--amber-text);
+}
+
+/* Click-away layer for the menu. Portalled to <body> alongside the menu, so it
+   covers the rail and the stage as well as the panel the menu opened from. */
+.menu-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-menu-scrim);
+}
+
+/* Applied on top of a menu's own class when the menu is portalled to <body>.
+   The offsets come from the anchor's measured rectangle as inline styles, so
+   the only job here is to switch positioning schemes and drop the `right` edge
+   that the in-flow version used to stretch itself across its field. */
+.menu-float {
+  position: fixed;
+  right: auto;
+  bottom: auto;
+  margin-top: 0;
+  z-index: var(--z-menu);
+}

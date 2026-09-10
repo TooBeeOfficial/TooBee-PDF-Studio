@@ -1,15 +1,19 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useFileDrop } from '../hooks/useFileDrop';
 import { PDFDocument } from 'pdf-lib';
-import { ACCEPTED_FILE_EXT } from '../components/FileUploader';
+import FileUploader from '../components/FileUploader';
 import PdfPreviewer from '../components/PdfPreviewer';
 import EmptyStage from '../components/EmptyStage';
 import StatusBanner from '../components/StatusBanner';
-import { Download, FileUp } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { useToolStore } from '../store/useToolStore';
 import { appendPdf } from '../utils/appendPdf';
 import { toPdfFile } from '../utils/fileConverter';
 
 export default function Extract() {
+  const { t } = useTranslation();
+  const { dropProps, isDragging } = useFileDrop(files => handleFilesSelected(files));
   const { document: doc, setDocument, noteNextChange } = useToolStore();
   const { file, bytes: sourceBytes } = doc;
   const [pages, setPages] = useState('');
@@ -17,7 +21,6 @@ export default function Extract() {
   const [extractedUrl, setExtractedUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFilesSelected = async (newFiles: File[]) => {
     if (!newFiles.length) return;
@@ -27,7 +30,7 @@ export default function Extract() {
     if (sourceBytes && sourceBytes.length && file) {
       try {
         const merged = await appendPdf(sourceBytes, newFiles);
-        noteNextChange('Added pages');
+        noteNextChange(t('common.addedPages'));
         setDocument(new File([merged], file.name, { type: 'application/pdf' }), merged);
         return;
       } catch (err) {
@@ -39,7 +42,7 @@ export default function Extract() {
     try {
       f = await toPdfFile(newFiles[0]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'That file type cannot be opened.');
+      setError(e instanceof Error ? e.message : t('common.errUnsupported'));
       return;
     }
     setError(null);
@@ -56,7 +59,7 @@ export default function Extract() {
       const pdfDoc = await PDFDocument.load(sourceBytes.slice(0));
       const newPdf = await PDFDocument.create();
       const pageIndices = pages.split(',').map(p => parseInt(p.trim()) - 1).filter(p => !isNaN(p) && p >= 0 && p < pdfDoc.getPageCount());
-      if (!pageIndices.length) throw new Error('Invalid page numbers');
+      if (!pageIndices.length) throw new Error(t('extract.errInvalid'));
       const copiedPages = await newPdf.copyPages(pdfDoc, pageIndices);
       copiedPages.forEach(page => newPdf.addPage(page));
       const bytes = await newPdf.save();
@@ -73,22 +76,9 @@ export default function Extract() {
   };
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" {...dropProps}>
       <header className="view-header">
-        <h1>Extract pages</h1>
-        {file && (
-          <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
-            <FileUp size={15} /> Add PDF
-          </button>
-        )}
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={e => { if (e.target.files?.length) handleFilesSelected(Array.from(e.target.files)); }}
-          style={{ display: 'none' }}
-          accept={ACCEPTED_FILE_EXT}
-          multiple
-        />
+        <h1>{t('extract.title')}</h1>
       </header>
 
       <div className="workbench">
@@ -98,7 +88,7 @@ export default function Extract() {
           ) : (
             <EmptyStage
               motif="extract"
-              headline={"Pull out specific pages"}
+              headline={t('extract.emptyHeadline')}
               onFilesSelected={handleFilesSelected}
             />
           )}
@@ -106,24 +96,25 @@ export default function Extract() {
 
         <aside className="inspector">
           <div className="inspector-body">
+            <div className="inspector-group">
+              <div className="t-eyebrow">{t('common.document')}</div>
+              {file && <div className="file-name" title={file.name}>{file.name}</div>}
+              <FileUploader onFilesSelected={handleFilesSelected} multiple />
+            </div>
+
             {file && (
               <>
-                <div className="inspector-group">
-                  <div className="t-eyebrow">Document</div>
-                  <div className="file-name" title={file.name}>{file.name}</div>
-                </div>
-
                 <div className="field">
-                  <label htmlFor="extract-pages">Pages to keep</label>
+                  <label htmlFor="extract-pages">{t('extract.pagesToKeep')}</label>
                   <input
                     id="extract-pages"
                     type="text"
                     className="input input-mono"
                     value={pages}
                     onChange={e => setPages(e.target.value)}
-                    placeholder="1, 3, 5"
+                    placeholder={t('extract.rangePlaceholder')}
                   />
-                  <p className="hint">Separate page numbers with commas.</p>
+                  <p className="hint">{t('extract.rangeHint')}</p>
                 </div>
 
                 {error && <StatusBanner type="error" message={error} />}
@@ -138,20 +129,25 @@ export default function Extract() {
                 onClick={extractPages}
                 disabled={isProcessing || !pages}
               >
-                {isProcessing ? 'Extracting…' : 'Extract pages'}
+                {isProcessing ? t('extract.extracting') : 'Extract pages'}
               </button>
               {extractedUrl && (
                 <button
                   className="btn btn-secondary btn-block"
                   onClick={() => { const a = document.createElement('a'); a.href = extractedUrl!; a.download = 'extracted_pages.pdf'; a.click(); }}
                 >
-                  <Download size={15} /> Save extracted PDF
+                  <Download size={15} /> {t('extract.download')}
                 </button>
               )}
             </div>
           )}
         </aside>
       </div>
+      {isDragging && (
+        <div className="drop-veil">
+          <span>{t('common.dropToOpen')}</span>
+        </div>
+      )}
     </div>
   );
 }

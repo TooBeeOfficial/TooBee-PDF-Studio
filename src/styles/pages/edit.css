@@ -1,0 +1,65 @@
+/* Studio Editor shape palette. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Shape palette (Studio Editor) ──────────────────────────────────────────
+   A tool picker in the Paint sense: choose the shape, then click the page. */
+
+.shape-palette {
+  display: grid;
+  /* 11 tools: 6 columns leaves a tidy 6 + 5 rather than an orphan. */
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--s-1);
+}
+
+.shape-tool {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: border-color var(--t-fast) ease-out, color var(--t-fast) ease-out,
+    background var(--t-fast) ease-out;
+}
+
+.shape-tool:hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.shape-tool.selected {
+  background: var(--amber-wash);
+  border-color: var(--amber);
+  color: var(--amber-text);
+}
+
+.shape-tool svg {
+  width: 100%;
+  height: 100%;
+}
+
+.shape-tool-glyph {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Bar under the canvas while a custom path is being built. */
+.path-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-top: 1px solid var(--amber);
+  background: var(--amber-wash);
+}
+
+.path-bar > .hint {
+  flex: 1;
+  color: var(--text);
+}

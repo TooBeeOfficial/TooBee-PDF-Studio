@@ -1,0 +1,205 @@
+/* Colour, spacing, layer and motion tokens. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Tokens: dark (default face) ────────────────────────────────────────── */
+
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --surface-app: #0b0b0d;
+  --surface-chrome: #101014;
+  --surface-panel: #16161b;
+  --surface-raised: #1d1d23;
+  --surface-stage: #131318;
+
+  --line: #26262e;
+  --line-strong: #3a3a45;
+
+  --text: #f2f2f3;
+  --text-dim: #a0a0ac;
+  --text-faint: #6f6f7c;
+
+  --amber: #d0a700;
+  --amber-hover: #e8bc0a;
+  --amber-text: #d0a700;
+  --on-amber: #14120a;
+  --amber-wash: rgba(208, 167, 0, 0.12);
+
+  --ok: #3da35d;
+  --ok-wash: rgba(61, 163, 93, 0.12);
+  --danger: #d6453d;
+  --danger-wash: rgba(214, 69, 61, 0.12);
+
+  --scrim: rgba(0, 0, 0, 0.55);
+  --shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.55);
+}
+
+/* ─── Tokens: light ──────────────────────────────────────────────────────────
+   Warm paper, not cool gray — a cool ground makes the amber read acidic. */
+
+[data-theme='light'] {
+  color-scheme: light;
+
+  --surface-app: #f7f6f3;
+  --surface-chrome: #ffffff;
+  --surface-panel: #ffffff;
+  --surface-raised: #f1efea;
+  --surface-stage: #e8e6e0;
+
+  --line: #e2dfd8;
+  --line-strong: #cfcbc2;
+
+  --text: #17171a;
+  --text-dim: #5c5c66;
+  --text-faint: #8a8a93;
+
+  --amber: #d0a700;
+  --amber-hover: #bc9600;
+  /* amber as TEXT must darken on paper: #d0a700 on white is 2.3:1, this is 4.8:1 */
+  --amber-text: #8a6f00;
+  --on-amber: #14120a;
+  --amber-wash: rgba(208, 167, 0, 0.14);
+
+  --ok: #2f7d47;
+  --ok-wash: rgba(47, 125, 71, 0.12);
+  --danger: #b8332c;
+  --danger-wash: rgba(184, 51, 44, 0.1);
+
+  --scrim: rgba(24, 22, 18, 0.4);
+  --shadow-modal: 0 16px 48px rgba(40, 36, 28, 0.22);
+}
+
+/* ─── Tokens: invariant ──────────────────────────────────────────────────── */
+
+:root {
+  --font-ui: 'Public Sans', 'Segoe UI', -apple-system, BlinkMacSystemFont,
+    'Yu Gothic UI', 'Meiryo', 'Microsoft YaHei UI', system-ui, sans-serif;
+  --font-mono: 'Spline Sans Mono', 'Cascadia Mono', Consolas, 'SF Mono',
+    'Liberation Mono', monospace;
+  /* Display: used at 28px and above only, at most twice per screen. Never for UI. */
+  --font-display: 'Literata', 'Iowan Old Style', 'Palatino Linotype', Georgia,
+    'Yu Mincho', 'Songti SC', serif;
+
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+
+  --rail-w: 220px;
+  --inspector-w: 300px;
+  --topbar-h: 48px;
+  --filmstrip-h: 84px;
+
+  --t-fast: 120ms;
+  --t-panel: 180ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ─── Layers ──────────────────────────────────────────────────────────────
+     Paint order is a design decision, so it is named here rather than argued
+     out one ad-hoc number at a time. Every element that needs a z-index takes
+     one of these, and nothing outside this list sets one above 10.
+
+     Read it as four bands, lowest first:
+       in-stage   overlays that belong to the document — page badges, drag
+                  ghosts, resize handles. They only ever compete with each
+                  other, so they stay small.
+       chrome     the rail and other shell furniture, which must cover the
+                  page beneath it but must never cover anything transient.
+       menu       dropdowns and their click-away layer, portalled to <body>.
+       modal      the settings dialog, which outranks everything.
+
+     The gap between bands leaves room to insert a layer without renumbering. */
+  --z-stage-item: 1;
+  --z-stage-overlay: 5;
+  --z-stage-handle: 8;
+  --z-chrome: 10;
+  --z-menu-scrim: 800;
+  --z-menu: 810;
+  --z-modal-scrim: 1000;
+}
+
+/* ─── Legacy token aliases ───────────────────────────────────────────────────
+   TEMPORARY. The pages that have not been restaged yet still reference the old
+   token names; without these they would resolve to nothing and render unstyled.
+   Each page migration deletes its old-name usages, and this whole block goes
+   when the last one is gone. Do not use these names in new code.
+
+   Declared on :root, which is the same element that carries [data-theme], so
+   each alias resolves against the active theme's value. */
+
+:root {
+  --bg-primary: var(--surface-app);
+  --bg-secondary: var(--surface-panel);
+  --bg-sidebar: var(--surface-chrome);
+  /* --accent was used almost entirely as a text, icon or border color, so it
+     maps to the contrast-corrected amber rather than the raw fill. */
+  --accent: var(--amber-text);
+  --accent-hover: var(--amber-hover);
+  --text-primary: var(--text);
+  --text-secondary: var(--text-dim);
+  --border-color: var(--line);
+  --glass-bg: var(--surface-raised);
+  --glass-border: var(--line);
+  --success: var(--ok);
+}
+
+/* ─── Motion budget ──────────────────────────────────────────────────────────
+   Three switches, all honoured independently:
+     data-perf="light"      — cheaper, but still responsive
+     data-perf="minimal"    — the user asked for stillness
+     prefers-reduced-motion — the OS asked for stillness
+
+   Light kills the two things that cost continuously or on every navigation —
+   looping animations and entrance animations — while keeping the short hover
+   and focus transitions that make controls feel like they responded. Minimal
+   removes motion entirely.
+
+   Note: the substantial runtime savings for weak machines live in the PDF
+   render loop (canvas retention, render concurrency, zoom re-render), which is
+   out of scope here. What these tiers can reach is the animation layer. */
+
+[data-perf='light'] .page-shimmer,
+[data-perf='light'] .spin,
+[data-perf='light'] .spinner {
+  /* Looping animations run forever and never stop costing frames. */
+  animation: none !important;
+}
+
+[data-perf='light'] .spinner,
+[data-perf='light'] .page-shimmer {
+  opacity: 0.6;
+}
+
+[data-perf='light'] .fade-in,
+[data-perf='light'] .modal-scrim {
+  /* Entrance animation on every route change and dialog open. */
+  animation: none !important;
+}
+
+[data-perf='minimal'],
+[data-perf='minimal'] * {
+  --t-fast: 0ms;
+  --t-panel: 0ms;
+  transition: none !important;
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  :root,
+  * {
+    --t-fast: 0ms;
+    --t-panel: 0ms;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

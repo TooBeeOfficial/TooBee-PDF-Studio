@@ -6,11 +6,13 @@ import EmptyStage from '../components/EmptyStage';
 import StatusBanner from '../components/StatusBanner';
 import { Download, Trash2, FileUp } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useFileDrop } from '../hooks/useFileDrop';
 import { useToolStore } from '../store/useToolStore';
 import { normalizeToPdf } from '../utils/fileConverter';
 
 export default function Merge() {
   const { t } = useTranslation();
+  const { dropProps, isDragging } = useFileDrop(files => handleFilesSelected(files));
   const { mergeFiles: files, setMergeFiles: setFiles, setDocument } = useToolStore();
   const [isProcessing, setIsProcessing] = useState(false);
   const [mergedPdfUrl, setMergedPdfUrl] = useState<string | null>(null);
@@ -75,7 +77,7 @@ export default function Merge() {
   };
 
   return (
-    <div className="fade-in">
+    <div className="fade-in" {...dropProps}>
       <header className="view-header">
         <h1>{t('merge.title')}</h1>
         {files.length > 0 && (
@@ -168,6 +170,11 @@ export default function Merge() {
           )}
         </aside>
       </div>
+      {isDragging && (
+        <div className="drop-veil">
+          <span>{t('common.dropToOpen')}</span>
+        </div>
+      )}
     </div>
   );
 }

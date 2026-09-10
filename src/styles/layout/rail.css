@@ -1,0 +1,82 @@
+/* Left navigation rail. Loaded from index.css — order matters, see the note there. */
+
+/* ─── Rail ───────────────────────────────────────────────────────────────── */
+
+.sidebar {
+  width: var(--rail-w);
+  flex-shrink: 0;
+  background: var(--surface-chrome);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  padding: var(--s-4) 0 0;
+  z-index: var(--z-chrome);
+  overflow: hidden;
+}
+
+.sidebar-logo {
+  padding: 0 var(--s-4) var(--s-5);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.sidebar-logo span {
+  color: var(--amber-text);
+}
+
+.nav-group {
+  margin-bottom: var(--s-4);
+}
+
+.nav-label {
+  padding: 0 var(--s-4) var(--s-2);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 0 var(--s-4);
+  height: 32px;
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  border-left: 2px solid transparent;
+  transition: background var(--t-fast) ease-out, color var(--t-fast) ease-out;
+}
+
+.nav-item:hover {
+  background: var(--surface-raised);
+  color: var(--text);
+}
+
+.nav-item.active {
+  background: var(--amber-wash);
+  color: var(--amber-text);
+  border-left-color: var(--amber);
+}
+
+.nav-item svg {
+  flex-shrink: 0;
+}
+
+.rail-footer {
+  padding: var(--s-2);
+  border-top: 1px solid var(--line);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
