@@ -1,7 +1,22 @@
 /**
  * generate-ico.mjs
- * Converts public/bee-logo.svg → build/icon.ico (multi-size: 16,32,48,256)
- * Uses only Jimp (pure JS, no native bindings) — installed on first run.
+ * Converts public/app-icon.svg → build/icon.ico and build/icon.png.
+ *
+ * The source is app-icon.svg, not bee-logo.svg: the bee alone is the app's
+ * sidebar mark and the sites' favicon, while the icon Windows shows in the
+ * taskbar, the Start menu and on the .exe is a page with the bee on it, so
+ * that it reads as a PDF tool at a glance.
+ *
+ * Two pieces of artwork go in: app-icon.svg, and app-icon-small.svg for the
+ * 16-32px entries. Below 32px the rules, the thin page edge and the outlined
+ * wings all antialias to grey mush, so the small cut drops them and thickens
+ * what is left. Same trick the Calender Maker's icon uses.
+ *
+ * ICO sizes are 16, 24, 32, 48, 64, 128 and 256 — Windows picks from these by
+ * context (16 in the title bar and small Explorer views, 32 in the taskbar,
+ * 48 in medium Explorer views, 256 for large icons), and a size missing from
+ * the file gets resampled from a neighbour, usually badly. icon.png is the
+ * 512px square electron-builder wants for the macOS and Linux targets.
  */
 
 import { execSync } from 'child_process';
@@ -17,8 +32,10 @@ const outDir = path.join(root, 'build');
 if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 
 // ─── 2. Use PowerShell + System.Drawing to rasterize the SVG to PNGs ─────────
-const svgPath = path.join(root, 'public', 'bee-logo.svg');
-const sizes = [256, 48, 32, 16];
+const svgPath = path.join(root, 'public', 'app-icon.svg');
+const svgSmallPath = path.join(root, 'public', 'app-icon-small.svg');
+const SMALL_CUT = 32; // at or below this size, use the simplified artwork
+const sizes = [256, 128, 64, 48, 32, 24, 16];
 const pngPaths = sizes.map(s => path.join(outDir, `icon_${s}.png`));
 
 // PowerShell one-liner: use WPF to render SVG at each size
@@ -72,18 +89,22 @@ const resvgMod = await ensurePkg('@resvg/resvg-js');
 const { Resvg } = resvgMod;
 
 const svgContent = readFileSync(svgPath);
+const svgSmallContent = existsSync(svgSmallPath)
+  ? readFileSync(svgSmallPath)
+  : svgContent;
 
 const pngBuffers = [];
 for (let i = 0; i < sizes.length; i++) {
   const sz = sizes[i];
-  const resvg = new Resvg(svgContent, {
+  const art = sz <= SMALL_CUT ? svgSmallContent : svgContent;
+  const resvg = new Resvg(art, {
     fitTo: { mode: 'width', value: sz },
   });
   const data = resvg.render();
   const png = data.asPng();
   writeFileSync(pngPaths[i], png);
   pngBuffers.push(png);
-  console.log(`✓ ${sz}×${sz} PNG`);
+  console.log(`✓ ${sz}×${sz} PNG${sz <= SMALL_CUT ? ' (small cut)' : ''}`);
 }
 
 // ─── 3. Pack PNGs into ICO ────────────────────────────────────────────────────
@@ -92,6 +113,12 @@ const ico = await pngToIco(pngPaths);
 
 const icoPath = path.join(outDir, 'icon.ico');
 writeFileSync(icoPath, ico);
+
+// ─── 4. The PNG the macOS and Linux targets use ──────────────────────────────
+writeFileSync(
+  path.join(outDir, 'icon.png'),
+  new Resvg(svgContent, { fitTo: { mode: 'width', value: 512 } }).render().asPng()
+);
 
 console.log(`\n✅ ICO written → ${icoPath}`);
 
