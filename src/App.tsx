@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import SettingsModal from './components/SettingsModal';
+import TitleBar from './components/TitleBar';
 import { useToolStore } from './store/useToolStore';
 import { usePrefsStore, probePerformance } from './store/usePrefsStore';
 import DocumentLedger, { DocumentLedgerWatcher } from './components/DocumentLedger';
@@ -151,11 +152,6 @@ function Sidebar({ onOpenSettings }: { onOpenSettings: () => void }) {
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-logo">
-        <img src="./bee-logo.svg" alt="TooBee bee logo" style={{ width: 32, height: 32, flexShrink: 0 }} />
-        TooBee <span>Studio</span>
-      </div>
-
       <nav style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         {navGroups.map(group => (
           <div key={group.label} className="nav-group">
@@ -295,15 +291,18 @@ export default function App() {
       <DocumentLedgerWatcher />
       <Shortcuts onOpenSettings={() => setIsSettingsOpen(true)} />
       <div className="app-container">
-        <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
-        <main className="main-content">
-          <PerfHint />
-          <AnimatedRoutes />
-        </main>
-        <SettingsModal
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-        />
+        <TitleBar />
+        <div className="app-body">
+          <Sidebar onOpenSettings={() => setIsSettingsOpen(true)} />
+          <main className="main-content">
+            <PerfHint />
+            <AnimatedRoutes />
+          </main>
+          <SettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+          />
+        </div>
       </div>
     </Router>
   );

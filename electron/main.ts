@@ -123,6 +123,10 @@ function createWindow() {
     minHeight: 700,
     title: "TooBee PDF Studio",
     icon: iconPath,
+    // The OS caption bar is switched off — the renderer draws its own
+    // TitleBar (drag region, logo and minimize/maximize/close buttons) and
+    // drives this window through the IPC handlers below instead.
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -180,6 +184,16 @@ function createWindow() {
   win.on("closed", () => {
     win = null;
   });
+
+  // Drives the TitleBar's maximize/restore icon, which can also change from
+  // outside the button itself — double-clicking the bar, dragging to a
+  // screen edge, or the OS's own Win+Up/Win+Down shortcuts.
+  win.on("maximize", () => {
+    win?.webContents.send("window:maximized-changed", true);
+  });
+  win.on("unmaximize", () => {
+    win?.webContents.send("window:maximized-changed", false);
+  });
 }
 
 app.whenReady().then(() => {
@@ -211,6 +225,28 @@ app.whenReady().then(() => {
 
   ipcMain.handle("app:getVersion", () => {
     return app.getVersion();
+  });
+
+  // ── Custom TitleBar window controls ───────────────────────────────────────
+  // Stand-ins for the buttons a native frame would otherwise draw, since
+  // `frame: false` above removes them entirely.
+
+  ipcMain.handle("window:minimize", () => {
+    win?.minimize();
+  });
+
+  ipcMain.handle("window:toggleMaximize", () => {
+    if (!win) return;
+    if (win.isMaximized()) win.unmaximize();
+    else win.maximize();
+  });
+
+  ipcMain.handle("window:close", () => {
+    win?.close();
+  });
+
+  ipcMain.handle("window:isMaximized", () => {
+    return win?.isMaximized() ?? false;
   });
 
   // ── Saved signature library ───────────────────────────────────────────────

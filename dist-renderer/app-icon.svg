@@ -1,57 +1,229 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
-  <!-- TooBee PDF Studio.
-       The sibling of the Calender Maker icon and drawn to the same rules: a
-       sheet of paper rather than an app tile, square corners, a hairline dark
-       edge, bee-gold accents, and the bee itself sitting where the page's
-       content would be.
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
 
-       What the calendar says with binder tabs and a header band, this says
-       with a turned-down corner and a gold label bar along the foot — the two
-       marks that make a shape read as a document file instead of a card.
-
-       Deliberately not bee-logo.svg. That mark is the bee alone and is the
-       app's sidebar logo and the sites' favicon; a bee on its own says
-       "TooBee" but says nothing about what the program opens. -->
-  <defs>
-    <clipPath id="body"><ellipse cx="0" cy="0" rx="31" ry="22"/></clipPath>
+<svg
+   width="56.247299mm"
+   height="56.514404mm"
+   viewBox="0 0 56.247299 56.514404"
+   version="1.1"
+   id="svg5"
+   inkscape:version="1.2.2 (732a01da63, 2022-12-09)"
+   sodipodi:docname="TooBeeStudioSuiteLogo.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="false"
+     inkscape:zoom="0.35355339"
+     inkscape:cx="691.55043"
+     inkscape:cy="2341.9377"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g12648" />
+  <defs
+     id="defs2">
+    <linearGradient
+       inkscape:collect="always"
+       id="linearGradient9730">
+      <stop
+         style="stop-color:#3771c8;stop-opacity:1"
+         offset="0"
+         id="stop9726" />
+      <stop
+         style="stop-color:#00112b;stop-opacity:1"
+         offset="1"
+         id="stop9728" />
+    </linearGradient>
+    <filter
+       style="color-interpolation-filters:sRGB"
+       inkscape:label="Drop Shadow"
+       id="filter14296"
+       x="-0.03718878"
+       y="-0.022479812"
+       width="1.096071"
+       height="1.0543262">
+      <feFlood
+         flood-opacity="0.25098"
+         flood-color="rgb(0,10,33)"
+         result="flood"
+         id="feFlood14286" />
+      <feComposite
+         in="flood"
+         in2="SourceGraphic"
+         operator="in"
+         result="composite1"
+         id="feComposite14288" />
+      <feGaussianBlur
+         in="composite1"
+         stdDeviation="0.5"
+         result="blur"
+         id="feGaussianBlur14290" />
+      <feOffset
+         dx="0.7"
+         dy="0.5"
+         result="offset"
+         id="feOffset14292" />
+      <feComposite
+         in="SourceGraphic"
+         in2="offset"
+         operator="over"
+         result="composite2"
+         id="feComposite14294" />
+    </filter>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient9730"
+       id="linearGradient9722"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="translate(0,-72.495833)"
+       x1="83.211456"
+       y1="229.52605"
+       x2="33.602081"
+       y2="179.91667" />
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient9730"
+       id="linearGradient9724"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="translate(0,-72.495833)"
+       x1="16.404167"
+       y1="162.98334"
+       x2="67.73333"
+       y2="214.84166" />
+    <filter
+       style="color-interpolation-filters:sRGB"
+       inkscape:label="Color Shift"
+       id="filter12595"
+       x="0"
+       y="0"
+       width="1"
+       height="1.0047485">
+      <feColorMatrix
+         type="hueRotate"
+         values="143"
+         result="color1"
+         id="feColorMatrix12591" />
+      <feColorMatrix
+         type="saturate"
+         values="1"
+         result="fbSourceGraphic"
+         id="feColorMatrix12593" />
+      <feColorMatrix
+         result="fbSourceGraphicAlpha"
+         in="fbSourceGraphic"
+         values="0 0 0 -1 0 0 0 0 -1 0 0 0 0 -1 0 0 0 0 1 0"
+         id="feColorMatrix14188" />
+      <feColorMatrix
+         id="feColorMatrix14190"
+         type="hueRotate"
+         values="354"
+         result="color1"
+         in="fbSourceGraphic" />
+      <feColorMatrix
+         id="feColorMatrix14192"
+         type="saturate"
+         values="0.551402"
+         result="color2" />
+    </filter>
   </defs>
-
-  <!-- the sheet, with the corner cut away -->
-  <path d="M42 16 H168 L214 62 V240 H42 Z" fill="#F7F6F2"/>
-
-  <!-- the gold label bar along the foot, where a file type badge sits -->
-  <rect x="42" y="200" width="172" height="40" fill="#F5B301"/>
-
-  <!-- the turned corner. Filled gold and outlined, so it reads as folded
-       forward rather than as a bite taken out of the page. -->
-  <path d="M168 16 L214 62 H168 Z" fill="#F5B301" stroke="#1B1E25" stroke-width="5" stroke-linejoin="round"/>
-
-  <!-- the page edge, drawn last so it sits over the bar and the fold -->
-  <path d="M42.5 16.5 H167.5 L213.5 62.5 V239.5 H42.5 Z" fill="none" stroke="#1B1E25" stroke-width="5" stroke-linejoin="round"/>
-  <line x1="42" y1="200" x2="214" y2="200" stroke="#1B1E25" stroke-width="5"/>
-
-  <!-- writing rules -->
-  <g stroke="#B9BCC4" stroke-width="4" stroke-linecap="round">
-    <line x1="70" y1="160" x2="190" y2="160"/>
-    <line x1="70" y1="180" x2="148" y2="180"/>
-  </g>
-
-  <!-- the bee -->
-  <g transform="translate(128 110) rotate(-12) scale(0.95)">
-    <!-- wings -->
-    <g fill="#FFFFFF" fill-opacity="0.92" stroke="#1B1E25" stroke-width="4.5">
-      <ellipse cx="-4"  cy="-30" rx="20" ry="12" transform="rotate(-24 -4 -30)"/>
-      <ellipse cx="22"  cy="-26" rx="17" ry="10" transform="rotate(-8 22 -26)"/>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(-201.85143,-573.47496)">
+    <g
+       id="g12648"
+       transform="translate(-10.476965,76.332177)">
+      <g
+         id="g9869"
+         style="filter:url(#filter12595)"
+         transform="translate(-39.620656,-1.2299191)">
+        <g
+           id="g9690"
+           transform="translate(0,71.4375)">
+          <g
+             id="g9684"
+             transform="translate(237.97679,339.00467)">
+            <rect
+               style="fill:url(#linearGradient9722);fill-opacity:1;stroke-width:1;stroke-linecap:square;stroke-miterlimit:100"
+               id="rect9666"
+               width="56.247284"
+               height="56.247284"
+               x="13.972256"
+               y="87.930511"
+               rx="4.4655552"
+               ry="4.4655552" />
+            <rect
+               style="fill:url(#linearGradient9724);fill-opacity:1;stroke-width:0.999999;stroke-linecap:square;stroke-miterlimit:100"
+               id="rect9668"
+               width="53.38118"
+               height="53.38118"
+               x="15.405308"
+               y="89.363556"
+               rx="3.3235977"
+               ry="3.3235977" />
+            <rect
+               style="fill:#002255;fill-opacity:1;stroke-width:0.999999;stroke-linecap:square;stroke-miterlimit:100"
+               id="rect9670"
+               width="53.38118"
+               height="53.38118"
+               x="15.405308"
+               y="89.363556"
+               rx="3.3235977"
+               ry="3.3235977" />
+            <g
+               id="g9682"
+               transform="translate(0,-72.495833)">
+              <g
+                 id="g9680"
+                 style="filter:url(#filter14296)">
+                <path
+                   id="path9672"
+                   style="fill:#0044aa;fill-opacity:1;stroke-width:0.999999;stroke-linecap:square;stroke-miterlimit:100"
+                   d="m 18.728658,161.85949 c -1.841268,0 -3.323312,1.48204 -3.323312,3.32331 v 46.7341 c 0,1.84125 1.482044,3.32382 3.323312,3.32382 h 6.961849 v -39.25031 -1.26918 -2.31924 h 15.89567 l 6.086967,-10.5425 H 44.924475 39.00804 Z" />
+                <g
+                   id="g9678">
+                  <path
+                     id="path9674"
+                     style="fill:#0044aa;fill-opacity:1;stroke-width:0.264583;stroke-linecap:square;stroke-miterlimit:100"
+                     inkscape:transform-center-y="1.4816617e-06"
+                     d="m 31.633813,178.66606 v 17.52451 h 9.952364 l 5.058606,-8.76227 -5.058606,-8.76224 z" />
+                  <path
+                     id="path9676"
+                     style="fill:#0044aa;fill-opacity:1;stroke-width:0.264583;stroke-linecap:square;stroke-miterlimit:100"
+                     inkscape:transform-center-y="1.4816617e-06"
+                     d="m 31.633813,197.71606 v 17.52451 h 9.952364 l 5.058606,-8.76227 -5.058606,-8.76224 z" />
+                </g>
+              </g>
+            </g>
+          </g>
+        </g>
+        <text
+           xml:space="preserve"
+           style="font-size:50.8px;font-family:'Barlow Condensed';-inkscape-font-specification:'Barlow Condensed, ';fill:#95cbd3;fill-opacity:1;stroke-width:1;stroke-linecap:square;stroke-miterlimit:100"
+           x="283.94321"
+           y="553.18707"
+           id="text9788"><tspan
+             sodipodi:role="line"
+             id="tspan9786"
+             style="stroke-width:1"
+             x="283.94321"
+             y="553.18707">P</tspan></text>
+      </g>
     </g>
-    <!-- stinger -->
-    <path d="M30 -7 L48 0 L30 7 Z" fill="#1B1E25"/>
-    <!-- abdomen -->
-    <ellipse cx="0" cy="0" rx="31" ry="22" fill="#1B1E25"/>
-    <g clip-path="url(#body)" fill="#F5B301">
-      <rect x="-6"  y="-24" width="13" height="48"/>
-      <rect x="15"  y="-24" width="12" height="48"/>
-    </g>
-    <!-- head -->
-    <circle cx="-31" cy="-3" r="13" fill="#1B1E25"/>
   </g>
 </svg>

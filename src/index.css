@@ -22,6 +22,7 @@
 @import './styles/foundation/tokens.css';
 @import './styles/foundation/base.css';
 @import './styles/layout/app-shell.css';
+@import './styles/layout/titlebar.css';
 @import './styles/layout/rail.css';
 @import './styles/layout/workbench.css';
 @import './styles/components/surfaces.css';

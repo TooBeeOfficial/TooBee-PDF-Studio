@@ -219,7 +219,7 @@ npm run build:win
 ## 🧪 Other commands
 
 ```bash
-npm run gen:icon      # regenerate build/icon.ico from public/bee-logo.svg
+npm run gen:icon      # regenerate build/icon.ico from public/app-icon.svg
 npm run sync:models   # refresh public/bg-removal/ from node_modules
 ```
 

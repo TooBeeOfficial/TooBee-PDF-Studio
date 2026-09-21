@@ -12,7 +12,7 @@
   background: var(--surface-app);
 }
 
-.app-container > main > div {
+.app-body > main > div {
   height: 100%;
 }
 
